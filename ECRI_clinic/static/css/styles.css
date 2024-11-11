@@ -1,0 +1,147 @@
+.navbar{
+    background-color: white;
+    height: 70px;
+    margin: 20px;
+    border-radius: 20px;
+    padding: 0.6rem;
+}
+.navbar-brand {
+    font-weight: 498;
+    color: #00b4d8;
+    font-size: 24px;
+    transition: 0.4s color;
+}
+.offcanvas.offcanvas-end {
+    background-color: rgba(255, 255, 255, 0.8); 
+    backdrop-filter: blur(5px); 
+}
+
+
+.signup-button {
+    background-color: #00b4d8; 
+    color: white;
+    font-size: 13px;
+    padding: 7px 19px;
+    border-radius: 60px;
+    text-decoration: none;
+    transition: 0.3s  background-color;
+}
+
+.signup-button:hover {
+    background-color: #00b4d8;
+}
+
+.login-button {
+    background-color: #00b4d8; 
+    color: white;
+    font-size: 13px;
+    padding: 7px 19px;
+    border-radius: 60px;
+    text-decoration: none;
+    transition: 0.3s  background-color;
+    margin-right: 20px;
+}
+
+.login-button:hover {
+    background-color: #00b4d8;
+}
+.navbar-toggler {
+    border: none;
+    font-size: 1.26rem;
+}
+
+.navbar-toggler:focus, .btn-close:focus {
+    box-shadow: none;
+    outline: none;
+}
+
+.nav-link {
+    color: #6e6f80;
+    font-weight: 450;
+    position: relative;
+}
+
+.nav-link:hover, .nav-link.active{
+    color: #000;  
+}
+
+@media (min-width: 980px){
+    .nav-link::before{
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 0;
+        height: 2px;
+        background-color: #00b4d8;
+        visibility: hidden;
+        transition: 0.3s ease-in-out;
+    }
+    
+    .nav-link:hover::before, .nav-link.active::before {
+        width: 100%;
+        visibility: visible;
+    }
+}
+
+.photo-section {
+    background: url("/static/images/unrecognizable-doctor-extending-digital-tab-anonymous-patient-fill-questionnaire.jpg") no-repeat center;
+    background-size: cover;
+    width: 100%;
+    height: 100vh;
+    position: relative; 
+    display: flex; 
+    align-items: center;
+    justify-content: center;
+    color: white; 
+    text-align: center;
+    z-index: 1;
+}
+
+.photo-section::before {
+    background-color: rgba(0, 0, 0, 0.6);
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: -1; 
+}
+
+.photo-section h1 {
+    font-size: 4rem;
+    color: whitesmoke;
+}
+
+.photo-section h2 {
+    font-size: 3rem;
+}
+
+.bg-holder{
+    position: absolute;
+    width: 100%;
+    min-height: 100%;
+    top: 0;
+    left: 0;
+    background-size: conver;
+    background-position: center;
+    background-repeat: no-repeat;
+
+}
+.btn i {
+    vertical-align: text-top;
+}
+
+.line-content-center{
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding-left: 0.7rem;
+    padding-right: 0.7rem;
+    font-size: 0.8rem;
+    background-color: white;
+    font-weight: 600;
+}

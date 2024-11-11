@@ -1,0 +1,38 @@
+body{
+    background-color: white;
+}
+.bg-image {
+    position: absolute;
+    width: 100%;
+    min-height: 100%;
+    top: 0;
+    left: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+
+}
+.btn {
+    font-size: 1rem;
+    font-weight: 700;
+}
+.btn i {
+    vertical-align: text-top;
+}
+.btn-custom {
+    background-color: #00b4d8; 
+    border: none;                  
+    color: white;       
+}
+
+a {
+text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+.custom-color{
+    color: #00b4d8;
+}

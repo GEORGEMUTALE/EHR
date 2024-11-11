@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Entry</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+
+<div class="container my-5">
+    <h1 class="text-center mb-4">{{ "Edit Patient" if patient else "New Patient Entry" }}</h1>
+    
+    <!-- Patient Form -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form action="{{ url_for('edit_patient', patient_id=patient['patient_id']) if patient else url_for('add_patient') }}" 
+            method="POST" enctype="multipart/form-data">
+                <div class="row">
+                    <!-- Basic Information -->
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="firstName">First Name</label>
+                            <input type="text" class="form-control" name="first_name" id="firstName" value="{{ patient.first_name if patient else '' }}" placeholder="Enter first name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="lastName">Last Name</label>
+                            <input type="text" class="form-control" name="last_name" id="lastName" value="{{ patient.last_name if patient else '' }}" placeholder="Enter last name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="dob">Date of Birth</label>
+                            <input type="date" class="form-control" name="dob" id="dob" value="{{ patient.dob if patient else '' }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="dateOfVisit">Date of Visit</label>
+                            <input type="date" class="form-control" name="dateOfVisit" id="dateOfVisit" value="{{ patient.date_of_visit if patient else '' }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="chiefComplaint">Chief Complaint</label>
+                            <textarea class="form-control" name="chiefComplaint" id="chiefComplaint" rows="2" placeholder="Chief complaint">{{ patient.chief_complaint if patient else '' }}</textarea>
+                        </div>
+                    </div>
+                    
+                    <!-- Medical Information -->
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="medicalHistory">Medical History</label>
+                            <textarea class="form-control" name="medicalHistory" id="medicalHistory" rows="2" placeholder="E.g., Asthma, Hypertension">{{ patient.medical_history if patient else '' }}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="medications">Current Medications</label>
+                            <textarea class="form-control" name="medications" id="medications" rows="2" placeholder="E.g., Albuterol inhaler, Lisinopril">{{ patient.medications if patient else '' }}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="allergies">Allergies</label>
+                            <input type="text" class="form-control" name="allergies" id="allergies" value="{{ patient.allergies if patient else '' }}" placeholder="E.g., Penicillin (rash)">
+                        </div>
+                        <div class="form-group">
+                            <label for="vitalSigns">Vital Signs</label>
+                            <textarea class="form-control" name="vitalSigns" id="vitalSigns" rows="2" placeholder="E.g., BP: 128/82, HR: 76, Temp: 37.1°C">{{ patient.vital_signs if patient else '' }}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="uploadImage">Upload Patient Image</label>
+                            <input type="file" class="form-control-file" name="patient_image" id="patient_image" onchange="previewImage(event)">
+                        </div>
+                        <div class="form-group">
+                            {% if patient and patient.image_url %}
+                                <img src="{{ url_for('static', filename=patient.image_url) }}" alt="Patient Image" class="img-thumbnail" style="width: 100px; height: 100px;">
+                            {% endif %}
+                            <img id="imagePreview" src="#" alt="Image Preview" class="img-thumbnail" style="display:none; width: 100px; height: 100px;">
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Save Patient</button>
+                <a href="{{ url_for('view_patients') }}" class="btn btn-secondary">Back to Records</a>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function previewImage(event) {
+        var reader = new FileReader();
+        reader.onload = function(){
+            var output = document.getElementById('imagePreview');
+            output.src = reader.result;
+            output.style.display = "block";
+        };
+        reader.readAsDataURL(event.target.files[0]);
+    }
+</script>
+</body>
+</html>
