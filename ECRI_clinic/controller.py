@@ -1,4 +1,7 @@
 import os
+import pandas as pd
+from flask import send_file
+from io import BytesIO
 import mysql.connector
 from flask import Flask, render_template, request, redirect, session, url_for,flash
 from oauthlib.oauth2.rfc6749.errors import TokenExpiredError
@@ -46,16 +49,23 @@ db = mysql.connector.connect(
 )
 cursor = db.cursor()
 
+
+
 # Helper function to check allowed file extensions
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Function to generate unique IDs
 def generate_id(first_name, last_name, table_name):
+    # Generate prefix from first and last name
     prefix = (first_name[:3] + last_name[:3]).upper()
-    cursor.execute(f"SELECT COUNT(*) FROM doctors WHERE doctor_id LIKE '{prefix}%'")
-    count = cursor.fetchone()[0] + 1
+    
+    # Use parameterized queries to avoid SQL injection
+    cursor.execute(f"SELECT COUNT(*) FROM {table_name} WHERE patient_id LIKE %s", (f"{prefix}%",))
+    count = cursor.fetchone()[0] + 1  # Add 1 to the count to generate a unique ID
+    
+    # Generate the ID (prefix + number with leading zeros)
     return f"{prefix}{count:03d}"
+
 
 @controller.route('/')
 def welcome():
@@ -151,7 +161,7 @@ def view_patients():
         return redirect(url_for('login'))
     
     department_id = session['department_id']
-    cursor.execute("SELECT * FROM patients WHERE doctor_id = %s", (department_id,))
+    cursor.execute("SELECT * FROM patients WHERE doctor_id = %s", (session['department_id'],))
     patients = cursor.fetchall()
     patients = [dict(zip([column[0] for column in cursor.description], row)) for row in patients]
 
@@ -261,6 +271,90 @@ def delete_patient(patient_id):
     cursor.execute("DELETE FROM patients WHERE patient_id = %s", (patient_id,))
     db.commit()
     return redirect(url_for('view_patients'))
+# Export all patients for the logged-in doctor's department as Excel
+@controller.route('/export_all_patients_excel')
+def export_all_patients_excel():
+    department_id = session.get('department_id')  # Get the department's ID from the session
+    
+    if not department_id:
+        return "Department not logged in", 403  # If the department is not logged in, return a 403 error
+    
+    # Fetch all patients for the department, using the doctor_id that references department_id
+    cursor.execute("""
+    SELECT p.patient_id, p.first_name, p.last_name, p.date_of_birth, p.date_of_visit,
+           p.chief_complaint, p.medical_history, p.medications, p.allergies, p.vital_signs, 
+           p.doctor_id
+    FROM patients p
+    JOIN doctors d ON p.doctor_id = d.department_id
+    WHERE d.department_id = %s
+    """, (department_id,))
+    patients = cursor.fetchall()
 
+    if not patients:
+        return "No patients found for this department", 404  # Return 404 if no patients are found
+    
+    # Get column names from the cursor description
+    column_names = [desc[0] for desc in cursor.description]
+
+    # Convert the patients data into a DataFrame
+    df = pd.DataFrame(patients, columns=column_names)
+
+    # Save DataFrame to an in-memory file (BytesIO)
+    output = BytesIO()
+    df.to_excel(output, index=False, engine='openpyxl')
+
+    # Seek to the beginning of the in-memory file before sending it
+    output.seek(0)
+
+    # Return the Excel file as a download
+    return send_file(output, as_attachment=True,
+                     download_name='patients.xlsx',
+                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+
+# Export a single patient for the logged-in doctor's department as Excel
+@controller.route('/export_patient_excel/<string:patient_id>')
+def export_patient_excel(patient_id):
+    department_id = session.get('department_id')  # Get the department's ID from the session
+    
+    if not department_id:
+        return "Department not logged in", 403  # If the department is not logged in, return a 403 error
+
+    # Fetch single patient data for the department, using the doctor_id that references department_id
+    cursor.execute("""
+    SELECT p.patient_id, p.first_name, p.last_name, p.date_of_birth, p.date_of_visit,
+           p.chief_complaint, p.medical_history, p.medications, p.allergies, p.vital_signs, 
+           p.doctor_id
+    FROM patients p
+    JOIN doctors d ON p.doctor_id = d.department_id
+    WHERE d.department_id = %s AND p.patient_id = %s
+    """, (department_id, patient_id))
+    patient = cursor.fetchone()
+
+    if not patient:
+        return "Patient not found or access denied", 404  # If no such patient exists for the department
+
+    # Get column names from the cursor description
+    column_names = [desc[0] for desc in cursor.description]
+
+    # Convert the fetched patient data into a dictionary
+    patient_data = dict(zip(column_names, patient))
+
+    # Convert to DataFrame
+    df = pd.DataFrame([patient_data])
+
+    # Define an in-memory file (BytesIO)
+    output = BytesIO()
+
+    # Save DataFrame to an in-memory Excel file (no index)
+    df.to_excel(output, index=False, engine='openpyxl')
+
+    # Seek to the beginning of the in-memory file before sending it
+    output.seek(0)
+
+    # Send the Excel file as a response
+    return send_file(output, as_attachment=True,
+                     download_name=f'{patient_data["patient_id"]}_patient.xlsx',
+                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 if __name__ == '__main__':
     controller.run(debug=True)
