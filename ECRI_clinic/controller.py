@@ -29,7 +29,7 @@ controller.config['MAIL_USERNAME'] = 'mutalegeorge367@gmail.com'
 controller.config['MAIL_PASSWORD'] = 'hqqwbjuwzohvyszk' 
 controller.config['MAIL_USE_TLS'] = True
 mail = Mail(controller)
-
+s = URLSafeTimedSerializer(controller.secret_key)
 # Google OAuth Configuration
 google_bp = make_google_blueprint(
     client_id="218393485164-ueft5o9k841djcrdp8f6a0dkdcm70ktn.apps.googleusercontent.com",
@@ -70,6 +70,66 @@ def generate_id(first_name, last_name, table_name):
 @controller.route('/')
 def welcome():
     return render_template('welcome.html')
+
+#forgot password
+@controller.route('/forgot_password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form['email']
+        
+        # Verify that email exists in database
+        cursor = db.cursor()
+        cursor.execute("SELECT department_id FROM doctors WHERE email = %s", (email,))
+        doctor = cursor.fetchone()
+        cursor.close()
+        
+        if doctor:
+            # Generate a token
+            token = s.dumps(email, salt='password-reset-salt')
+            
+            # Create reset link
+            reset_link = url_for('reset_password', token=token, _external=True)
+            
+            # Send email
+            msg = Message('Password Reset Request', sender='mutalegeorge367@gmail.com', recipients=[email])
+            msg.body = f'Click the link to reset your password: {reset_link}'
+            mail.send(msg)
+            
+            return "Password reset link has been sent to your email."
+
+        return "Email address is not registered."
+    
+    return render_template('forgot_password.html')
+
+@controller.route('/reset_password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    try:
+        # Validate the token (expires after 1 hour)
+        email = s.loads(token, salt='password-reset-salt', max_age=3600)
+    except:
+        return "The reset link is invalid or has expired."
+    
+    if request.method == 'POST':
+        new_password = request.form['new_password']
+        confirm_password = request.form['confirm_password']
+        
+        # Check if passwords match
+        if new_password != confirm_password:
+            return "Passwords do not match!"
+        
+        hashed_password = generate_password_hash(new_password)
+        
+        # Update the password in the database
+        cursor = db.cursor()
+        cursor.execute("UPDATE doctors SET password = %s WHERE email = %s", (hashed_password, email))
+        db.commit()
+        cursor.close()
+        
+        return redirect(url_for('login'))
+
+    # Render the reset password form for GET requests
+    return render_template('reset_password.html', token=token)
+
 
 @controller.route("/signup", methods=['GET', 'POST'])
 def signup():
@@ -119,7 +179,7 @@ def signup():
             db.commit()
 
             # Send a welcome email upon successful registration
-            msg = Message("Welcome to our EHR System!", sender='your_email@gmail.com', recipients=[email])
+            msg = Message("Welcome to our EHR System!", sender='mutalegeorge367@gmail.com', recipients=[email])
             msg.body = f"Hello {first_name} {last_name},\n\nThank you for registering with us!"
             msg.html = f"<h3>Hello {first_name} {last_name},</h3><p>Thank you for registering with us!</p>"
             mail.send(msg)
@@ -271,6 +331,7 @@ def delete_patient(patient_id):
     cursor.execute("DELETE FROM patients WHERE patient_id = %s", (patient_id,))
     db.commit()
     return redirect(url_for('view_patients'))
+
 # Export all patients for the logged-in doctor's department as Excel
 @controller.route('/export_all_patients_excel')
 def export_all_patients_excel():
