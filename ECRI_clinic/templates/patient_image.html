@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Images</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        /* Styling for images */
+        .card-img-top {
+            height: 200px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+
+        /* Card styling */
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .card:hover {
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            transform: translateY(-5px);
+            transition: all 0.3s ease-in-out;
+        }
+
+        /* Responsive grid */
+        .card-columns {
+            column-count: 4;
+            column-gap: 1.5rem;
+        }
+
+        /* Adjust layout for smaller screens */
+        @media (max-width: 1200px) {
+            .card-columns {
+                column-count: 3;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .card-columns {
+                column-count: 2;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .card-columns {
+                column-count: 1;
+            }
+        }
+
+        /* General styling for headings and container */
+        h1 {
+            font-size: 2.5em;
+            font-weight: 600;
+            color: #343a40;
+        }
+
+        .container {
+            padding: 40px 15px;
+        }
+
+        .btn-secondary {
+            padding: 10px 20px;
+            font-size: 1.1em;
+            border-radius: 25px;
+        }
+
+        .text-center p {
+            font-size: 1.2em;
+            color: #6c757d;
+        }
+
+        /* Styling for the "Back to Records" button */
+        .btn-back {
+            margin-top: 20px;
+            padding: 10px 25px;
+            font-size: 1.1em;
+            border-radius: 50px;
+            background-color: #007bff;
+            color: white;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn-back:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+    <h1 class="text-center mb-4">Patient Images for {{ patient.first_name }} {{ patient.last_name }}</h1>
+    <p class="text-center mb-4">Age: {{ patient.age }} years</p>
+    
+    <!-- Image Cards Section -->
+    <div class="card-columns">
+        {% for image in images %}
+            <div class="card">
+                <!-- Displaying Patient Image -->
+                <img src="{{ url_for('static', filename='uploads/' + image['url'].split('uploads/', 1)[-1]) }}" alt="Patient Image" class="card-img-top">
+            </div>
+        {% endfor %}
+    </div>
+
+    <!-- Button to go back to records -->
+    <div class="text-center">
+        <a href="{{ url_for('view_patients') }}" class="btn btn-back">Back to Records</a>
+    </div>
+</div>
+
+</body>
+
+</html>

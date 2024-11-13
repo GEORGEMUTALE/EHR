@@ -11,6 +11,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer
+from pydicom import dcmread
+from datetime import datetime
+from PIL import Image
 
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 # Path where uploaded images will be stored (e.g., within the 'static' directory)
@@ -49,6 +52,23 @@ db = mysql.connector.connect(
 )
 
 cursor = db.cursor()
+
+# Utility function to save the image and return the URL path
+def save_image(file, filename):
+    file_path = os.path.join(UPLOAD_FOLDER, filename)
+    if filename.endswith(".dcm"):
+        # Convert DICOM to JPEG
+        dicom = dcmread(file)
+        pixel_array = dicom.pixel_array
+        image = Image.fromarray(pixel_array)
+        jpg_path = file_path.replace(".dcm", ".jpg")
+        image.save(jpg_path)
+        return f"/static/uploads/{os.path.basename(jpg_path)}"
+    else:
+        # Save JPEG directly
+        file.save(file_path)
+        return f"/static/uploads/{os.path.basename(file_path)}"
+
 
 # Helper function to check allowed file extensions
 def allowed_file(filename):
@@ -91,7 +111,7 @@ def forgot_password():
             
             # Send email
             msg = Message('Password Reset Request', sender='mutalegeorge367@gmail.com', recipients=[email])
-            msg.body = f'Click the link to reset your password: {reset_link}'
+            msg.body = f'The link expires in 5 minutes. We request you utilise the time and Click the link below to reset your password: {reset_link}'
             mail.send(msg)
             
             return "Password reset link has been sent to your email."
@@ -103,8 +123,7 @@ def forgot_password():
 @controller.route('/reset_password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
     try:
-        # Validate the token (expires after 1 hour)
-        email = s.loads(token, salt='password-reset-salt', max_age=3600)
+        email = s.loads(token, salt='password-reset-salt', max_age=300)
     except:
         return "The reset link is invalid or has expired."
     
@@ -276,6 +295,7 @@ def logout():
 @controller.route('/add_patient', methods=['GET', 'POST'])
 def add_patient():
     if request.method == 'POST':
+        # Collect form data
         first_name = request.form.get('first_name')
         last_name = request.form.get('last_name')
         date_of_birth = request.form.get('dob')
@@ -288,27 +308,78 @@ def add_patient():
         doctor_id = session.get('department_id')
         patient_id = generate_id(first_name, last_name, "patients")
 
-        file = request.files['patient_image']
-        image_data = None
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            file_path = os.path.join(UPLOAD_FOLDER, filename)
-            file.save(file_path)
-            with open(file_path, 'rb') as img_file:
-                image_data = img_file.read()
+        # Process images and save URLs
+        image_urls = []
+        files = request.files.getlist('patient_image')  # Multiple files
+        for file in files:
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                image_url = save_image(file, filename)
+                image_urls.append(image_url)
 
-        cursor.execute("""
+        # Insert patient data including image URLs into the database
+        cursor.execute(""" 
             INSERT INTO patients (patient_id, first_name, last_name, date_of_birth, date_of_visit, 
-                                  chief_complaint, medical_history, medications, 
-                                  allergies, vital_signs, patient_image, doctor_id)
-            VALUES (%s,%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                  chief_complaint, medical_history, medications, allergies, vital_signs, patient_image, doctor_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (patient_id, first_name, last_name, date_of_birth, date_of_visit, chief_complaint,
-              medical_history, medications, allergies, vital_signs, image_data, doctor_id))
+              medical_history, medications, allergies, vital_signs, ",".join(image_urls), doctor_id))
         db.commit()
 
         return redirect(url_for('view_patients'))
-    
+
     return render_template('edit_patient.html')
+
+@controller.route('/delete_image/<string:patient_id>/<string:image_url>')
+def delete_image(patient_id, image_url):
+    cursor.execute("SELECT patient_image FROM patients WHERE patient_id = %s", (patient_id,))
+    patient = cursor.fetchone()
+    if patient:
+        # Remove the image URL from the database
+        current_images = patient['patient_image'].split(",")
+        if image_url in current_images:
+            current_images.remove(image_url)
+            new_image_urls = ",".join(current_images)
+            cursor.execute("UPDATE patients SET patient_image = %s WHERE patient_id = %s", (new_image_urls, patient_id))
+            db.commit()
+
+            # Optionally, delete the physical file from server
+            file_path = os.path.join("static", "uploads", os.path.basename(image_url))
+            if os.path.exists(file_path):
+                os.remove(file_path)
+    return redirect(url_for('edit_patient', patient_id=patient_id))
+
+@controller.route('/view_images/<string:patient_id>')
+def view_images(patient_id):
+    cursor.execute("SELECT first_name, last_name, date_of_birth, patient_image FROM patients WHERE patient_id = %s", (patient_id,))
+    patient = cursor.fetchone()
+
+    if patient:
+        # Convert tuple to a dictionary using column names
+        patient_dict = dict(zip([column[0] for column in cursor.description], patient))
+        
+        # Calculate the patient's age
+        dob = patient_dict['date_of_birth']
+        if isinstance(dob, str):  # If DOB is a string, convert it to a datetime object
+            dob = datetime.strptime(dob, "%d-%m-%y")  # Adjust date format if needed
+        age = (datetime.today().date() - dob).days // 365
+        
+        # Add the calculated age to patient_dict
+        patient_dict['age'] = age
+        
+        # Split the image URLs if available
+        image_urls = patient_dict['patient_image'].split(",") if patient_dict['patient_image'] else []
+        print("Patient image URLs:", image_urls)  # Debugging step
+        
+        # Prepare the list of images with the required patient details
+        images = [{"url": url, "description": "Uploaded Patient Image"} for url in image_urls]
+        print("Images data:", images)  # Debugging step
+    else:
+        images = []
+        patient_dict = {}
+
+    # Pass both patient data and images list to the template
+    return render_template('patient_image.html', images=images, patient=patient_dict)
 
 @controller.route('/edit_patient/<string:patient_id>', methods=['GET', 'POST'])
 def edit_patient(patient_id):

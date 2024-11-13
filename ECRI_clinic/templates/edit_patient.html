@@ -29,7 +29,7 @@
                         </div>
                         <div class="form-group">
                             <label for="dob">Date of Birth</label>
-                            <input type="date" class="form-control" name="dob" id="dob" value="{{ patient.dob if patient else '' }}" required>
+                            <input type="date" class="form-control" name="dob" id="dob" value="{{ patient.date_of_birth if patient else '' }}" required>
                         </div>
                         <div class="form-group">
                             <label for="dateOfVisit">Date of Visit</label>
@@ -59,15 +59,26 @@
                             <label for="vitalSigns">Vital Signs</label>
                             <textarea class="form-control" name="vitalSigns" id="vitalSigns" rows="2" placeholder="E.g., BP: 128/82, HR: 76, Temp: 37.1°C">{{ patient.vital_signs if patient else '' }}</textarea>
                         </div>
+
+                        <!-- Upload Multiple Images -->
                         <div class="form-group">
-                            <label for="uploadImage">Upload Patient Image</label>
-                            <input type="file" class="form-control-file" name="patient_image" id="patient_image" onchange="previewImage(event)">
+                            <label for="uploadImage">Upload Patient Images</label>
+                            <input type="file" class="form-control-file" name="patient_image" id="patient_image" onchange="previewImages(event)" multiple>
                         </div>
-                        <div class="form-group">
-                            {% if patient and patient.image_url %}
-                                <img src="{{ url_for('static', filename=patient.image_url) }}" alt="Patient Image" class="img-thumbnail" style="width: 100px; height: 100px;">
+
+                        <!-- Preview Images -->
+                        <div class="form-group" id="imagePreviewContainer">
+                            {% if patient and patient.patient_image %}
+                                <div class="existing-images">
+                                    {% for img_url in patient.patient_image.split(',') %}
+                                        <div class="image-container mb-2">
+                                            <img src="{{ url_for('static', filename=img_url) }}" alt="Patient Image" class="img-thumbnail" style="width: 100px; height: 100px;">
+                                            <a href="{{ url_for('delete_image', patient_id=patient.patient_id, image_url=img_url) }}" class="btn btn-danger btn-sm">Delete</a>
+                                        </div>
+                                    {% endfor %}
+                                </div>
                             {% endif %}
-                            <img id="imagePreview" src="#" alt="Image Preview" class="img-thumbnail" style="display:none; width: 100px; height: 100px;">
+                            <div id="imagePreview" style="display:none;"></div>
                         </div>
                     </div>
                 </div>
@@ -79,15 +90,27 @@
 </div>
 
 <script>
-    function previewImage(event) {
-        var reader = new FileReader();
-        reader.onload = function(){
-            var output = document.getElementById('imagePreview');
-            output.src = reader.result;
-            output.style.display = "block";
-        };
-        reader.readAsDataURL(event.target.files[0]);
+    function previewImages(event) {
+        var previewContainer = document.getElementById("imagePreviewContainer");
+        previewContainer.innerHTML = "";  // Clear previous previews
+
+        var files = event.target.files;
+        if (files) {
+            Array.from(files).forEach(function(file) {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    var imgElement = document.createElement("img");
+                    imgElement.src = e.target.result;
+                    imgElement.classList.add("img-thumbnail");
+                    imgElement.style.width = "100px";
+                    imgElement.style.height = "100px";
+                    previewContainer.appendChild(imgElement);
+                };
+                reader.readAsDataURL(file);
+            });
+        }
     }
 </script>
+
 </body>
 </html>
