@@ -47,9 +47,8 @@ db = mysql.connector.connect(
     password="",
     database="clinic_data"
 )
+
 cursor = db.cursor()
-
-
 
 # Helper function to check allowed file extensions
 def allowed_file(filename):
@@ -417,5 +416,51 @@ def export_patient_excel(patient_id):
     return send_file(output, as_attachment=True,
                      download_name=f'{patient_data["patient_id"]}_patient.xlsx',
                      mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+@controller.route('/update_password', methods=['GET', 'POST'])
+def update_password():
+    if request.method == 'POST':
+        # Get form data
+        old_password = request.form['old_password']
+        new_password = request.form['new_password']
+        confirm_password = request.form['confirm_password']
+
+        # Check if user is logged in
+        department_id = session.get('department_id')
+        if not department_id:
+            flash("You must be logged in to update your password.", "warning")
+            return redirect(url_for('login'))
+
+        # Retrieve the current password from the database
+        cursor.execute("SELECT password FROM doctors WHERE department_id = %s", (department_id,))
+        doctor = cursor.fetchone()
+
+        # Validate existence of doctor and old password
+        if doctor is None:
+            flash("Doctor not found.", "danger")
+            return redirect(url_for('login'))
+
+        if not check_password_hash(doctor[0], old_password):
+            flash("Current password is incorrect.", "danger")
+            return redirect(url_for('update_password'))
+
+        # Confirm new passwords match
+        if new_password != confirm_password:
+            flash("New password and confirmation do not match.", "danger")
+            return redirect(url_for('update_password'))
+
+        # Update password in the database
+        new_password_hash = generate_password_hash(new_password)
+        cursor.execute("UPDATE doctors SET password = %s WHERE department_id = %s", (new_password_hash, department_id))
+        db.commit()
+
+        # Success feedback
+        flash("Password updated successfully!", "success")
+        return redirect(url_for('view_patients'))
+    
+    # Render password update form
+    return render_template('update_password.html')
+
+
 if __name__ == '__main__':
     controller.run(debug=True)
