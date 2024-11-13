@@ -209,6 +209,47 @@ def login():
 
     return render_template('login_form.html')
 
+@controller.route('/google_login')
+def google_login():
+    # Force login prompt
+    if not google.authorized:
+        return redirect(url_for("google.login", prompt="consent"))
+    
+    try:
+        resp = google.get("/oauth2/v2/userinfo")
+        resp.raise_for_status()  # Raise an error for bad responses
+    except TokenExpiredError:
+        return redirect(url_for("google.login"))
+    except Exception as e:
+        flash(f"An error occurred while fetching user info: {str(e)}", "danger")
+        return redirect(url_for('login'))
+
+    # Get the user info
+    info = resp.json()
+    email = info.get("email")
+
+    if not email:
+        flash("Error: Email not found in the response. Please check your Google account permissions.", "danger")
+        return redirect(url_for('login'))
+
+    # Check if the email exists in the database
+    cursor.execute("SELECT department_id FROM doctors WHERE email = %s", (email,))
+    doctor = cursor.fetchone()
+
+    if not doctor:
+        flash("Error: Email not found in our records. Please contact support or sign up.", "danger")
+        return redirect(url_for('login'))
+    
+    # Extract department_id from the database result
+    department_id = doctor[0]
+
+    # If all checks pass, set the session
+    session['department_id'] = department_id
+    flash("Login successful!", "success")
+    return redirect(url_for('view_patients'))
+
+
+
 @controller.route('/patients')
 def view_patients():
     if 'department_id' not in session:
@@ -460,6 +501,43 @@ def update_password():
     
     # Render password update form
     return render_template('update_password.html')
+
+@controller.route('/delete_account', methods=['GET', 'POST'])
+def delete_account():
+    if request.method == 'POST':
+        # Get form data (password entered by the doctor)
+        password = request.form['password']
+
+        # Check if user is logged in
+        department_id = session.get('department_id')
+        if not department_id:
+            flash("You must be logged in to delete your account.", "warning")
+            return redirect(url_for('login'))
+
+        # Retrieve the doctor's hashed password from the database
+        cursor.execute("SELECT password FROM doctors WHERE department_id = %s", (department_id,))
+        doctor = cursor.fetchone()
+
+        # Check if doctor exists and password is correct
+        if doctor is None:
+            flash("Doctor not found.", "danger")
+            return redirect(url_for('login'))
+        
+        if not check_password_hash(doctor[0], password):
+            flash("Incorrect password. Account deletion failed.", "danger")
+            return redirect(url_for('delete_account'))
+
+        # Delete the doctor's account
+        cursor.execute("DELETE FROM doctors WHERE department_id = %s", (department_id,))
+        db.commit()
+
+        # Clear session and confirm deletion
+        session.pop('department_id', None)
+        flash("Your account has been deleted successfully.", "success")
+        return redirect(url_for('login'))
+
+    # Render the account deletion confirmation form
+    return render_template('delete_account.html')
 
 
 if __name__ == '__main__':

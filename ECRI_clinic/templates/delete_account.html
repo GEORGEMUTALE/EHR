@@ -18,7 +18,7 @@
                 </div>
                 <div class="card-body">
                     <p class="text-danger">This action is irreversible. Once you delete your account, all your data will be permanently lost.</p>
-                    <form action="/confirm_delete_account" method="POST">
+                    <form action="{{ url_for('delete_account') }}" method="post">
                         <div class="mb-3">
                             <label for="password" class="form-label">Please enter your password to confirm</label>
                             <input type="password" class="form-control" id="password" name="password" required>
@@ -28,7 +28,7 @@
                         </div>
                     </form>
                     <div>
-                        <a href="/patients" class="btn btn-outline-secondary">Cancel</a>
+                        <a href="/doctors_patients" class="btn btn-outline-secondary">Cancel</a>
                     </div>
                 </div>
             </div>
