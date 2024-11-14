@@ -5,8 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Patient Entry</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        .flash-message {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .flash-message.success { background-color: #d4edda; color: #155724; }
+        .flash-message.error { background-color: #f8d7da; color: #721c24; }
+    </style>
 </head>
 <body>
+    {% with messages = get_flashed_messages(with_categories=True) %}
+        {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                    <div class="flash-message {{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+    
 
 <div class="container my-5">
     <h1 class="text-center mb-4">{{ "Edit Patient" if patient else "New Patient Entry" }}</h1>
@@ -30,6 +49,21 @@
                         <div class="form-group">
                             <label for="dob">Date of Birth</label>
                             <input type="date" class="form-control" name="dob" id="dob" value="{{ patient.date_of_birth if patient else '' }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Gender</label>
+                            <div class="form-check">
+                                <input type="radio" id="gender_male" name="gender" value="Male" class="form-check-input" required {{ 'checked' if patient and patient.gender == 'Male' else '' }}>
+                                <label class="form-check-label" for="gender_male">Male</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="radio" id="gender_female" name="gender" value="Female" class="form-check-input" required {{ 'checked' if patient and patient.gender == 'Female' else '' }}>
+                                <label class="form-check-label" for="gender_female">Female</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="radio" id="gender_other" name="gender" value="Other" class="form-check-input" required {{ 'checked' if patient and patient.gender == 'Other' else '' }}>
+                                <label class="form-check-label" for="gender_other">Other</label>
+                            </div>
                         </div>
                         <div class="form-group">
                             <label for="dateOfVisit">Date of Visit</label>
@@ -80,6 +114,12 @@
                             {% endif %}
                             <div id="imagePreview" style="display:none;"></div>
                         </div>
+                    </div>
+                    <div class="form-check d-flex justify-content-start mb-4 pb-3">
+                        <input class="form-check-input me-3" type="checkbox" value="Accepted" id="terms" name="terms" />
+                        <label class="form-check-label text-black" for="terms">
+                          I hereby  hereby declare my agreement and acceptance on the data protection regulations by this medical facility. If I don't I cannot use the application.
+                        </label>
                     </div>
                 </div>
                 <button type="submit" class="btn btn-primary">Save Patient</button>

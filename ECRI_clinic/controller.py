@@ -22,15 +22,16 @@ os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 controller = Flask(__name__)
 UPLOAD_FOLDER = 'static/uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'dcm'}
 controller.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # Configuration
 controller.secret_key = 'Health01'
 controller.config['MAIL_SERVER'] = 'smtp.gmail.com'
 controller.config['MAIL_PORT'] = 587
+controller.config['MAIL_USE_TLS'] = True  # or False if using SSL and MAIL_PORT is 465
+controller.config['MAIL_USE_SSL'] = False  # or True if using SSL
 controller.config['MAIL_USERNAME'] = 'mutalegeorge367@gmail.com'
 controller.config['MAIL_PASSWORD'] = 'hqqwbjuwzohvyszk' 
-controller.config['MAIL_USE_TLS'] = True
 mail = Mail(controller)
 s = URLSafeTimedSerializer(controller.secret_key)
 # Google OAuth Configuration
@@ -158,6 +159,7 @@ def signup():
         first_name = request.form.get('first_name')
         last_name = request.form.get('last_name')
         date_of_birth = request.form.get('dob')
+        gender = request.form.get('gender')
         position = request.form.get('position')
         password = request.form.get('createPassword')
         confirm_password = request.form.get('repeatPassword')
@@ -173,11 +175,13 @@ def signup():
         if password != confirm_password:
             flash("Passwords do not match.")
             return redirect(url_for('signup'))
-        if len(password) < 8 or len(password) > 20:
-            flash("Password must be between 8-20 characters.")
+        
+        if not re.match(r'^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&#!])[A-Za-z\d@$!%*?&#!]{8,}$', password):
+            flash("Password must be at least 8 characters long and contain letters, numbers, and special characters.", "danger")
             return redirect(url_for('signup'))
-        hashed_password = generate_password_hash(password)
 
+        hashed_password = generate_password_hash(password)
+        
         # Basic email format check
         if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
             flash("Invalid email format.")
@@ -186,11 +190,11 @@ def signup():
         try:
             # Insert data into the database
             sql = """
-                INSERT INTO doctors (title, department_id, first_name, last_name, date_of_birth, position, password, 
+                INSERT INTO doctors (title, department_id, first_name, last_name, gender, date_of_birth, position, password, 
                                    street, zip_code, place, country, phone, email, terms_accepted)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
-            values = (title, department_id, first_name, last_name, date_of_birth, position, hashed_password,
+            values = (title, department_id, first_name, last_name, gender, date_of_birth, position, hashed_password,
                       street, zip_code, place, country, phone, email, terms_accepted)
 
             cursor.execute(sql, values)
@@ -210,6 +214,77 @@ def signup():
             return redirect(url_for('signup'))
 
     return render_template('signup_form.html')
+
+@controller.route("/update_profile", methods=['GET', 'POST'])
+def update_profile():
+    # Retrieve department_id from session (assuming this is how you're tracking the logged-in doctor)
+    department_id = session.get('department_id')  
+    if 'department_id' not in session:
+        return redirect(url_for('login'))
+    
+    if request.method == 'POST':
+        # Retrieve form data from the POST request
+        title = request.form.get('title')
+        department_id = request.form.get('department_id')
+        first_name = request.form.get('first_name').upper()
+        last_name = request.form.get('last_name').upper()
+        date_of_birth = request.form.get('dob')
+        gender = request.form.get('gender').upper()
+        position = request.form.get('position').upper()
+        street = request.form.get('street').upper()
+        zip_code = request.form.get('zip_code')
+        place = request.form.get('place').upper()
+        country = request.form.get('country').upper()
+        phone = request.form.get('phone')
+        email = request.form.get('email')
+
+        # Basic email format check
+        if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+            flash("Invalid email format.")
+            return redirect(url_for('update_profile'))
+
+        try:
+            # Update data in the database
+            update_sql = """
+                UPDATE doctors
+                SET title = %s, department_id = %s, first_name = %s, last_name = %s, gender = %s, 
+                    date_of_birth = %s, position = %s, street = %s, zip_code = %s, place = %s, 
+                    country = %s, phone = %s, email = %s
+                WHERE department_id = %s
+            """
+            values = (title, department_id, first_name, last_name, gender, date_of_birth, position, 
+                      street, zip_code, place, country, phone, email, department_id)
+
+            cursor.execute(update_sql, values)
+            db.commit()
+
+            # Optionally send an update confirmation email
+            msg = Message("Your Profile has been Updated", sender='mutalegeorge367@gmail.com', recipients=[email])
+            msg.body = f"Hello {first_name} {last_name},\n\nYour profile information has been successfully updated!"
+            msg.html = f"<h3>Hello {first_name} {last_name},</h3><p>Your profile information has been successfully updated!</p>"
+            mail.send(msg)
+
+            flash("Profile updated successfully!")
+            return redirect(url_for('view_patients'))
+
+        except mysql.connector.Error as err:
+            flash(f"Database error: {err}")
+            return redirect(url_for('update_profile'))
+
+    else:
+        # Fetch current doctor information from the database
+        cursor.execute("SELECT * FROM doctors WHERE department_id = %s", (department_id,))
+        doctor_data = cursor.fetchall()  # Fetches all rows (if there are any matching)
+
+        # If no data is found, we can handle that scenario as well
+        if not doctor_data:
+            flash("No doctor found with this ID.")
+            return redirect(url_for('view_patients'))
+
+        # Convert the doctor data to a dictionary using zip and cursor.description
+        doctor = [dict(zip([column[0] for column in cursor.description], row)) for row in doctor_data][0]
+
+        return render_template('update_profile.html', doctor=doctor)
 
 @controller.route('/login', methods=['GET', 'POST'])
 def login():
@@ -271,6 +346,7 @@ def google_login():
 
 @controller.route('/patients')
 def view_patients():
+    department_id = session.get('department_id')  
     if 'department_id' not in session:
         return redirect(url_for('login'))
     
@@ -288,17 +364,27 @@ def view_patients():
 
 @controller.route('/logout')
 def logout():
+    department_id = session.get('department_id')  
+    if 'department_id' not in session:
+        return redirect(url_for('login'))
+    
     session.clear()
     flash("You have been logged out.")
     return redirect(url_for('login'))
 
 @controller.route('/add_patient', methods=['GET', 'POST'])
+
 def add_patient():
+    department_id = session.get('department_id')  
+    if 'department_id' not in session:
+        return redirect(url_for('login'))
+    
     if request.method == 'POST':
         # Collect form data
-        first_name = request.form.get('first_name')
-        last_name = request.form.get('last_name')
+        first_name = request.form.get('first_name').upper()
+        last_name = request.form.get('last_name').upper()
         date_of_birth = request.form.get('dob')
+        gender = request.form.get('gender').upper()
         date_of_visit = request.form.get('dateOfVisit')
         chief_complaint = request.form.get('chiefComplaint')
         medical_history = request.form.get('medicalHistory')
@@ -307,6 +393,7 @@ def add_patient():
         vital_signs = request.form.get('vitalSigns')
         doctor_id = session.get('department_id')
         patient_id = generate_id(first_name, last_name, "patients")
+        terms_accepted = request.form.get('terms')
 
         # Process images and save URLs
         image_urls = []
@@ -319,11 +406,11 @@ def add_patient():
 
         # Insert patient data including image URLs into the database
         cursor.execute(""" 
-            INSERT INTO patients (patient_id, first_name, last_name, date_of_birth, date_of_visit, 
-                                  chief_complaint, medical_history, medications, allergies, vital_signs, patient_image, doctor_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (patient_id, first_name, last_name, date_of_birth, date_of_visit, chief_complaint,
-              medical_history, medications, allergies, vital_signs, ",".join(image_urls), doctor_id))
+            INSERT INTO patients (patient_id, first_name, last_name, date_of_birth, gender, date_of_visit, 
+                                  chief_complaint, medical_history, medications, allergies, vital_signs, patient_image, terms_accepted, doctor_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,%s,%s)
+        """, (patient_id, first_name, last_name, date_of_birth, gender, date_of_visit, chief_complaint,
+              medical_history, medications, allergies, vital_signs, ",".join(image_urls), terms_accepted,doctor_id))
         db.commit()
 
         return redirect(url_for('view_patients'))
@@ -332,6 +419,12 @@ def add_patient():
 
 @controller.route('/delete_image/<string:patient_id>/<string:image_url>')
 def delete_image(patient_id, image_url):
+    department_id = session.get('department_id')  
+    if 'department_id' not in session:
+        return redirect(url_for('login'))
+    
+    cursor = db.cursor(dictionary=True)
+    
     cursor.execute("SELECT patient_image FROM patients WHERE patient_id = %s", (patient_id,))
     patient = cursor.fetchone()
     if patient:
@@ -351,7 +444,11 @@ def delete_image(patient_id, image_url):
 
 @controller.route('/view_images/<string:patient_id>')
 def view_images(patient_id):
-    cursor.execute("SELECT first_name, last_name, date_of_birth, patient_image FROM patients WHERE patient_id = %s", (patient_id,))
+    department_id = session.get('department_id')  
+    if 'department_id' not in session:
+        return redirect(url_for('login'))
+    
+    cursor.execute("SELECT first_name, last_name, date_of_birth, gender, patient_image FROM patients WHERE patient_id = %s", (patient_id,))
     patient = cursor.fetchone()
 
     if patient:
@@ -383,6 +480,10 @@ def view_images(patient_id):
 
 @controller.route('/edit_patient/<string:patient_id>', methods=['GET', 'POST'])
 def edit_patient(patient_id):
+    department_id = session.get('department_id')  
+    if 'department_id' not in session:
+        return redirect(url_for('login'))
+    
     if request.method == 'GET':
         # Fetch patient data for editing
         cursor.execute("SELECT * FROM patients WHERE patient_id = %s", (patient_id,))
@@ -397,13 +498,17 @@ def edit_patient(patient_id):
         first_name = request.form.get('first_name')
         last_name = request.form.get('last_name')
         date_of_birth = request.form.get('dob')
+        gender = request.form.get('gender')
         date_of_visit = request.form.get('dateOfVisit')
         chief_complaint = request.form.get('chiefComplaint')
         medical_history = request.form.get('medicalHistory')
         medications = request.form.get('medications')
         allergies = request.form.get('allergies')
         vital_signs = request.form.get('vitalSigns')
+        terms_accepted = request.form.get('terms')
+
         image_file = request.files['patient_image']
+        
 
         # Optional: handle image upload if a file is provided
         image_data = None
@@ -418,27 +523,31 @@ def edit_patient(patient_id):
         if image_data:
             cursor.execute("""
                 UPDATE patients
-                SET first_name = %s, last_name = %s, date_of_birth = %s, date_of_visit = %s,
+                SET first_name = %s, last_name = %s, date_of_birth = %s, gender = %s, date_of_visit = %s,
                     chief_complaint = %s, medical_history = %s, medications = %s, 
-                    allergies = %s, vital_signs = %s, patient_image = %s
+                    allergies = %s, vital_signs = %s, patient_image = %s, terms_accepted = %s
                 WHERE patient_id = %s
-            """, (first_name, last_name, date_of_birth, date_of_visit, chief_complaint, medical_history,
-                  medications, allergies, vital_signs, image_data, patient_id))
+            """, (first_name, last_name, date_of_birth, gender, date_of_visit, chief_complaint, medical_history,
+                  medications, allergies, vital_signs, image_data, terms_accepted,patient_id))
         else:
             cursor.execute("""
                 UPDATE patients
-                SET first_name = %s, last_name = %s, date_of_birth = %s, date_of_visit = %s,
+                SET first_name = %s, last_name = %s, date_of_birth = %s, gender = %s, date_of_visit = %s,
                     chief_complaint = %s, medical_history = %s, medications = %s, 
-                    allergies = %s, vital_signs = %s
+                    allergies = %s, vital_signs = %s, terms_accepted = %s
                 WHERE patient_id = %s
-            """, (first_name, last_name, date_of_birth, date_of_visit, chief_complaint, medical_history,
-                  medications, allergies, vital_signs, patient_id))
+            """, (first_name, last_name, date_of_birth, gender, date_of_visit, chief_complaint, medical_history,
+                  medications, allergies, vital_signs, terms_accepted, patient_id))
 
         db.commit()
         return redirect(url_for('view_patients'))
 
 @controller.route('/delete_patient/<string:patient_id>', methods=['POST'])
 def delete_patient(patient_id):
+    department_id = session.get('department_id')  
+    if 'department_id' not in session:
+        return redirect(url_for('login'))
+    
     cursor.execute("DELETE FROM patients WHERE patient_id = %s", (patient_id,))
     db.commit()
     return redirect(url_for('view_patients'))
@@ -449,11 +558,11 @@ def export_all_patients_excel():
     department_id = session.get('department_id')  # Get the department's ID from the session
     
     if not department_id:
-        return "Department not logged in", 403  # If the department is not logged in, return a 403 error
+        return "Please log in first", 403  # If the department is not logged in, return a 403 error
     
     # Fetch all patients for the department, using the doctor_id that references department_id
     cursor.execute("""
-    SELECT p.patient_id, p.first_name, p.last_name, p.date_of_birth, p.date_of_visit,
+    SELECT p.patient_id, p.first_name, p.last_name, p.date_of_birth, p.gender, p.date_of_visit,
            p.chief_complaint, p.medical_history, p.medications, p.allergies, p.vital_signs, 
            p.doctor_id
     FROM patients p
@@ -487,15 +596,14 @@ def export_all_patients_excel():
 # Export a single patient for the logged-in doctor's department as Excel
 @controller.route('/export_patient_excel/<string:patient_id>')
 def export_patient_excel(patient_id):
-    department_id = session.get('department_id')  # Get the department's ID from the session
+    department_id = session.get('department_id')  
+    if 'department_id' not in session:
+        return redirect(url_for('login'))
     
-    if not department_id:
-        return "Department not logged in", 403  # If the department is not logged in, return a 403 error
-
     # Fetch single patient data for the department, using the doctor_id that references department_id
     cursor.execute("""
-    SELECT p.patient_id, p.first_name, p.last_name, p.date_of_birth, p.date_of_visit,
-           p.chief_complaint, p.medical_history, p.medications, p.allergies, p.vital_signs, 
+    SELECT p.patient_id, p.first_name, p.last_name, p.date_of_birth, p.gender, p.date_of_visit,
+           p.chief_complaint, p.medical_history, p.medications, p.allergies, p.vital_signs, p.terms_accepted
            p.doctor_id
     FROM patients p
     JOIN doctors d ON p.doctor_id = d.department_id
@@ -528,9 +636,36 @@ def export_patient_excel(patient_id):
     return send_file(output, as_attachment=True,
                      download_name=f'{patient_data["patient_id"]}_patient.xlsx',
                      mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+@controller.route('/search', methods=['GET'])
+def search():
+    department_id = session.get('department_id')  
+    # Ensure doctor is logged in
+    if 'department_id' not in session:
+        return redirect(url_for('login'))
+    
+    query = request.args.get('query', '').upper()
+    cursor = db.cursor(dictionary=True)  
+    
+    if query:
+        # Use LIKE for partial matching
+        cursor.execute("""
+            SELECT * FROM patients 
+            WHERE first_name LIKE %s OR last_name LIKE %s
+        """, (f"%{query}%", f"%{query}%"))
+    else:
+        cursor.execute("SELECT * FROM patients")
+    
+    patients = cursor.fetchall()
+    return render_template('doctors_patient.html', patients=patients)
+
+
 
 @controller.route('/update_password', methods=['GET', 'POST'])
 def update_password():
+    department_id = session.get('department_id')  
+    if 'department_id' not in session:
+        return redirect(url_for('login'))
+    
     if request.method == 'POST':
         # Get form data
         old_password = request.form['old_password']
@@ -560,6 +695,12 @@ def update_password():
         if new_password != confirm_password:
             flash("New password and confirmation do not match.", "danger")
             return redirect(url_for('update_password'))
+        
+          # Validate new password complexity
+        if not re.match(r'^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$', new_password):
+            flash("Password must be at least 8 characters long and contain letters, numbers, and special characters.", "danger")
+            return redirect(url_for('update_password'))
+
 
         # Update password in the database
         new_password_hash = generate_password_hash(new_password)
@@ -575,6 +716,10 @@ def update_password():
 
 @controller.route('/delete_account', methods=['GET', 'POST'])
 def delete_account():
+    department_id = session.get('department_id')  
+    if 'department_id' not in session:
+        return redirect(url_for('login'))
+    
     if request.method == 'POST':
         # Get form data (password entered by the doctor)
         password = request.form['password']
@@ -613,3 +758,4 @@ def delete_account():
 
 if __name__ == '__main__':
     controller.run(debug=True)
+ 
