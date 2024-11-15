@@ -14,6 +14,8 @@ from itsdangerous import URLSafeTimedSerializer
 from pydicom import dcmread
 from datetime import datetime
 from PIL import Image
+import numpy as np
+
 
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 # Path where uploaded images will be stored (e.g., within the 'static' directory)
@@ -56,24 +58,37 @@ cursor = db.cursor()
 
 # Utility function to save the image and return the URL path
 def save_image(file, filename):
+    """Saves uploaded image, converts DICOM if needed, and returns its URL path."""
     file_path = os.path.join(UPLOAD_FOLDER, filename)
+    
     if filename.endswith(".dcm"):
         # Convert DICOM to JPEG
         dicom = dcmread(file)
         pixel_array = dicom.pixel_array
-        image = Image.fromarray(pixel_array)
+        
+        # Normalize the pixel array to 8-bit if needed
+        if pixel_array.dtype != np.uint8:
+            pixel_array = (pixel_array / pixel_array.max() * 255).astype(np.uint8)
+        
+        # Convert pixel array to PIL Image in grayscale mode
+        image = Image.fromarray(pixel_array, mode='L')
+        
+        # Save the converted image as JPEG
         jpg_path = file_path.replace(".dcm", ".jpg")
-        image.save(jpg_path)
-        return f"/static/uploads/{os.path.basename(jpg_path)}"
+        image.save(jpg_path, format="JPEG")
+        
+        # Return the relative URL path to the converted JPEG
+        return f"/{UPLOAD_FOLDER}/{os.path.basename(jpg_path)}"
     else:
-        # Save JPEG directly
+        # Save JPEG or PNG image directly
         file.save(file_path)
-        return f"/static/uploads/{os.path.basename(file_path)}"
+        return f"/{UPLOAD_FOLDER}/{os.path.basename(file_path)}"
 
-
-# Helper function to check allowed file extensions
+# Helper function to validate allowed file extensions.
 def allowed_file(filename):
+    """Checks if the file has an allowed extension."""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 def generate_id(first_name, last_name, table_name):
     # Generate prefix from first and last name
@@ -371,18 +386,17 @@ def logout():
     session.clear()
     flash("You have been logged out.")
     return redirect(url_for('login'))
-
+# Route to add a new patient.
 @controller.route('/add_patient', methods=['GET', 'POST'])
-
 def add_patient():
     department_id = session.get('department_id')  
-    if 'department_id' not in session:
+    if not department_id:
         return redirect(url_for('login'))
     
     if request.method == 'POST':
         # Collect form data
-        first_name = request.form.get('first_name').upper()
-        last_name = request.form.get('last_name').upper()
+        first_name = request.form.get('first_name').strip.upper()
+        last_name = request.form.get('last_name').strip.upper()
         date_of_birth = request.form.get('dob')
         gender = request.form.get('gender').upper()
         date_of_visit = request.form.get('dateOfVisit')
@@ -391,7 +405,7 @@ def add_patient():
         medications = request.form.get('medications')
         allergies = request.form.get('allergies')
         vital_signs = request.form.get('vitalSigns')
-        doctor_id = session.get('department_id')
+        doctor_id = department_id
         patient_id = generate_id(first_name, last_name, "patients")
         terms_accepted = request.form.get('terms')
 
@@ -408,9 +422,9 @@ def add_patient():
         cursor.execute(""" 
             INSERT INTO patients (patient_id, first_name, last_name, date_of_birth, gender, date_of_visit, 
                                   chief_complaint, medical_history, medications, allergies, vital_signs, patient_image, terms_accepted, doctor_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,%s,%s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (patient_id, first_name, last_name, date_of_birth, gender, date_of_visit, chief_complaint,
-              medical_history, medications, allergies, vital_signs, ",".join(image_urls), terms_accepted,doctor_id))
+              medical_history, medications, allergies, vital_signs, ",".join(image_urls), terms_accepted, doctor_id))
         db.commit()
 
         return redirect(url_for('view_patients'))
@@ -444,45 +458,46 @@ def delete_image(patient_id, image_url):
 
 @controller.route('/view_images/<string:patient_id>')
 def view_images(patient_id):
-    department_id = session.get('department_id')  
-    if 'department_id' not in session:
+    # Verify if the user is authenticated
+    department_id = session.get('department_id')
+    if not department_id:
         return redirect(url_for('login'))
     
+    # Retrieve patient data from the database
     cursor.execute("SELECT first_name, last_name, date_of_birth, gender, patient_image FROM patients WHERE patient_id = %s", (patient_id,))
     patient = cursor.fetchone()
 
     if patient:
-        # Convert tuple to a dictionary using column names
+        # Convert the fetched data to a dictionary with column names
         patient_dict = dict(zip([column[0] for column in cursor.description], patient))
         
-        # Calculate the patient's age
-        dob = patient_dict['date_of_birth']
-        if isinstance(dob, str):  # If DOB is a string, convert it to a datetime object
-            dob = datetime.strptime(dob, "%d-%m-%y")  # Adjust date format if needed
-        age = (datetime.today().date() - dob).days // 365
-        
-        # Add the calculated age to patient_dict
-        patient_dict['age'] = age
-        
-        # Split the image URLs if available
+        # Calculate age from date of birth
+        dob = patient_dict.get('date_of_birth')
+        try:
+            if isinstance(dob, str):  # Convert to datetime if DOB is a string
+                dob = datetime.strptime(dob, "%d-%m-%y")  # Adjust format if needed
+            age = (datetime.today().date() - dob).days // 365
+            patient_dict['age'] = age
+        except ValueError:
+            patient_dict['age'] = "Unknown"  # Handle DOB parsing error gracefully
+
+        # Split image URLs if they exist
         image_urls = patient_dict['patient_image'].split(",") if patient_dict['patient_image'] else []
-        print("Patient image URLs:", image_urls)  # Debugging step
         
-        # Prepare the list of images with the required patient details
+        # Create a list of images with descriptions
         images = [{"url": url, "description": "Uploaded Patient Image"} for url in image_urls]
-        print("Images data:", images)  # Debugging step
     else:
         images = []
         patient_dict = {}
 
-    # Pass both patient data and images list to the template
+    # Render the template with patient data and images
     return render_template('patient_image.html', images=images, patient=patient_dict)
 
 @controller.route('/edit_patient/<string:patient_id>', methods=['GET', 'POST'])
 def edit_patient(patient_id):
-    department_id = session.get('department_id')  
     if 'department_id' not in session:
         return redirect(url_for('login'))
+    department_id = session.get('department_id')  
     
     if request.method == 'GET':
         # Fetch patient data for editing
