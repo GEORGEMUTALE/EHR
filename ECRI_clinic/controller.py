@@ -387,24 +387,14 @@ def logout():
     flash("You have been logged out.", "success")
     return redirect(url_for('login'))
 
-@controller.route('/patient/<patient_id>', methods=['GET', 'POST'])
-@controller.route('/add_patient', methods=['GET', 'POST'])  # To handle the 'Add Patient' case without an ID
-def work_patient(patient_id=None):
+# Route for adding a new patient
+@controller.route('/add_patient', methods=['GET', 'POST'])
+def add_patient():
     department_id = session.get('department_id')
     if not department_id:
         return redirect(url_for('login'))
 
-    # If patient_id is provided, it's an edit case; otherwise, it's a new patient
-    if patient_id:
-        # Fetch the existing patient details from the database
-        cursor.execute("SELECT * FROM patients WHERE patient_id = %s", (patient_id,))
-        patient = cursor.fetchone()
-        if not patient:
-            flash("Patient not found.", "error")
-            return redirect(url_for('view_patients'))
-    else:
-        patient = None  # No patient data for new patient
-
+    # Handle form submission (POST)
     if request.method == 'POST':
         # Collect form data
         first_name = request.form.get('first_name').strip().upper()
@@ -418,15 +408,12 @@ def work_patient(patient_id=None):
         allergies = request.form.get('allergies')
         vital_signs = request.form.get('vitalSigns')
         terms_accepted = request.form.get('terms')
-        
-        # Generate patient_id if it's a new patient
-        if not patient:
-            patient_id = generate_id(first_name, last_name, "patients")
-            doctor_id = department_id
-        else:
-            doctor_id = patient['doctor_id']  # Use the existing doctor's ID
 
-        # Process images and save URLs
+        # Generate a new patient ID
+        patient_id = generate_id(first_name, last_name, "patients")
+        doctor_id = department_id
+
+        # Handle image uploads
         image_urls = []
         files = request.files.getlist('patient_image')  # Multiple files
         for file in files:
@@ -435,31 +422,84 @@ def work_patient(patient_id=None):
                 image_url = save_image(file, filename)
                 image_urls.append(image_url)
 
-        # Insert or update patient data including image URLs into the database
-        if patient:
-            # Update existing patient data
-            cursor.execute("""
-                UPDATE patients SET first_name = %s, last_name = %s, date_of_birth = %s, gender = %s,
-                date_of_visit = %s, chief_complaint = %s, medical_history = %s, medications = %s, allergies = %s,
-                vital_signs = %s, patient_image = %s, terms_accepted = %s, doctor_id = %s
-                WHERE patient_id = %s
-            """, (first_name, last_name, date_of_birth, gender, date_of_visit, chief_complaint,
-                  medical_history, medications, allergies, vital_signs, ",".join(image_urls), terms_accepted, doctor_id, patient_id))
-        else:
-            # Insert new patient data
-            cursor.execute("""
-                INSERT INTO patients (patient_id, first_name, last_name, date_of_birth, gender, date_of_visit,
-                                      chief_complaint, medical_history, medications, allergies, vital_signs, patient_image, terms_accepted, doctor_id)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (patient_id, first_name, last_name, date_of_birth, gender, date_of_visit, chief_complaint,
-                  medical_history, medications, allergies, vital_signs, ",".join(image_urls), terms_accepted, doctor_id))
+        # Insert new patient data into the database
+        cursor.execute("""
+            INSERT INTO patients (patient_id, first_name, last_name, date_of_birth, gender, date_of_visit,
+                                  chief_complaint, medical_history, medications, allergies, vital_signs, patient_image, terms_accepted, doctor_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (patient_id, first_name, last_name, date_of_birth, gender, date_of_visit, chief_complaint,
+              medical_history, medications, allergies, vital_signs, ",".join(image_urls), terms_accepted, doctor_id))
 
         db.commit()
-        flash("Patient details saved successfully.", "success")
+        flash("Patient added successfully.", "success")
         return redirect(url_for('view_patients'))
 
-    # Render the template, passing the patient data (or None for a new patient)
-    return render_template('edit_patient.html', patient=patient)
+    # Render the form for adding a new patient
+    return render_template('edit_patient.html', patient=None)
+
+
+# Route for editing an existing patient's details
+@controller.route('/edit_patient/<string:patient_id>', methods=['GET', 'POST'])
+def edit_patient(patient_id):
+    department_id = session.get('department_id')
+    if not department_id:
+        return redirect(url_for('login'))
+
+    # Handle GET request to fetch existing patient data
+    if request.method == 'GET':
+        cursor.execute("SELECT * FROM patients WHERE patient_id = %s", (patient_id,))
+        patient = cursor.fetchone()
+        if patient:
+            # Convert patient tuple to dictionary for easier access in template
+            patient = dict(zip([column[0] for column in cursor.description], patient))
+        return render_template('edit_patient.html', patient=patient)
+
+    # Handle POST request to update patient details
+    elif request.method == 'POST':
+        first_name = request.form.get('first_name')
+        last_name = request.form.get('last_name')
+        date_of_birth = request.form.get('dob')
+        gender = request.form.get('gender')
+        date_of_visit = request.form.get('dateOfVisit')
+        chief_complaint = request.form.get('chiefComplaint')
+        medical_history = request.form.get('medicalHistory')
+        medications = request.form.get('medications')
+        allergies = request.form.get('allergies')
+        vital_signs = request.form.get('vitalSigns')
+        terms_accepted = request.form.get('terms')
+
+        image_file = request.files['patient_image']
+        image_data = None
+        if image_file and image_file.filename:
+            filename = secure_filename(image_file.filename)
+            file_path = os.path.join(UPLOAD_FOLDER, filename)
+            image_file.save(file_path)
+            with open(file_path, 'rb') as img_file:
+                image_data = img_file.read()
+
+        # Update patient details in the database
+        if image_data:
+            cursor.execute("""
+                UPDATE patients
+                SET first_name = %s, last_name = %s, date_of_birth = %s, gender = %s, date_of_visit = %s,
+                    chief_complaint = %s, medical_history = %s, medications = %s, 
+                    allergies = %s, vital_signs = %s, patient_image = %s, terms_accepted = %s
+                WHERE patient_id = %s
+            """, (first_name, last_name, date_of_birth, gender, date_of_visit, chief_complaint, medical_history,
+                  medications, allergies, vital_signs, image_data, terms_accepted, patient_id))
+        else:
+            cursor.execute("""
+                UPDATE patients
+                SET first_name = %s, last_name = %s, date_of_birth = %s, gender = %s, date_of_visit = %s,
+                    chief_complaint = %s, medical_history = %s, medications = %s, 
+                    allergies = %s, vital_signs = %s, terms_accepted = %s
+                WHERE patient_id = %s
+            """, (first_name, last_name, date_of_birth, gender, date_of_visit, chief_complaint, medical_history,
+                  medications, allergies, vital_signs, terms_accepted, patient_id))
+
+        db.commit()
+        flash("Patient details updated successfully.", "success")
+        return redirect(url_for('view_patients'))
 
 @controller.route('/delete_image/<string:patient_id>/<string:image_url>')
 def delete_image(patient_id, image_url):
@@ -522,70 +562,6 @@ def view_images(patient_id):
 
     # Render the template with patient data and images
     return render_template('patient_image.html', images=images, patient=patient_dict)
-
-@controller.route('/edit_patient/<string:patient_id>', methods=['GET', 'POST'])
-def edit_patient(patient_id):
-    if 'department_id' not in session:
-        return redirect(url_for('login'))
-    department_id = session.get('department_id')  
-    
-    if request.method == 'GET':
-        # Fetch patient data for editing
-        cursor.execute("SELECT * FROM patients WHERE patient_id = %s", (patient_id,))
-        patient = cursor.fetchone()
-        if patient:
-            # Convert patient tuple to dictionary for easier access in template
-            patient = dict(zip([column[0] for column in cursor.description], patient))
-        return render_template('edit_patient.html', patient=patient)
-
-    # Handle POST request for saving edits
-    elif request.method == 'POST':
-        first_name = request.form.get('first_name')
-        last_name = request.form.get('last_name')
-        date_of_birth = request.form.get('dob')
-        gender = request.form.get('gender')
-        date_of_visit = request.form.get('dateOfVisit')
-        chief_complaint = request.form.get('chiefComplaint')
-        medical_history = request.form.get('medicalHistory')
-        medications = request.form.get('medications')
-        allergies = request.form.get('allergies')
-        vital_signs = request.form.get('vitalSigns')
-        terms_accepted = request.form.get('terms')
-
-        image_file = request.files['patient_image']
-        
-
-        # Optional: handle image upload if a file is provided
-        image_data = None
-        if image_file and image_file.filename:
-            filename = secure_filename(image_file.filename)
-            file_path = os.path.join(UPLOAD_FOLDER, filename)
-            image_file.save(file_path)
-            with open(file_path, 'rb') as img_file:
-                image_data = img_file.read()
-
-        # Update patient information in the database
-        if image_data:
-            cursor.execute("""
-                UPDATE patients
-                SET first_name = %s, last_name = %s, date_of_birth = %s, gender = %s, date_of_visit = %s,
-                    chief_complaint = %s, medical_history = %s, medications = %s, 
-                    allergies = %s, vital_signs = %s, patient_image = %s, terms_accepted = %s
-                WHERE patient_id = %s
-            """, (first_name, last_name, date_of_birth, gender, date_of_visit, chief_complaint, medical_history,
-                  medications, allergies, vital_signs, image_data, terms_accepted,patient_id))
-        else:
-            cursor.execute("""
-                UPDATE patients
-                SET first_name = %s, last_name = %s, date_of_birth = %s, gender = %s, date_of_visit = %s,
-                    chief_complaint = %s, medical_history = %s, medications = %s, 
-                    allergies = %s, vital_signs = %s, terms_accepted = %s
-                WHERE patient_id = %s
-            """, (first_name, last_name, date_of_birth, gender, date_of_visit, chief_complaint, medical_history,
-                  medications, allergies, vital_signs, terms_accepted, patient_id))
-
-        db.commit()
-        return redirect(url_for('view_patients'))
 
 @controller.route('/delete_patient/<string:patient_id>', methods=['POST'])
 def delete_patient(patient_id):

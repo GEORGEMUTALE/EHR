@@ -71,7 +71,7 @@
         <!-- Patient Form -->
         <div class="card mb-4">
             <div class="card-body">
-                <form action="{{ url_for('work_patient', patient_id=patient['patient_id']) if patient else url_for('work_patient') }}" 
+                <form action="{{ url_for('add_patient') if not patient else url_for('edit_patient', patient_id=patient['patient_id']) }}" 
                 method="POST" enctype="multipart/form-data">
                     <div class="row">
                         <!-- Basic Information -->
