@@ -78,11 +78,11 @@ def save_image(file, filename):
         image.save(jpg_path, format="JPEG")
         
         # Return the relative URL path to the converted JPEG
-        return f"/{UPLOAD_FOLDER}/{os.path.basename(jpg_path)}"
+        return f"{UPLOAD_FOLDER}/{os.path.basename(jpg_path)}"
     else:
         # Save JPEG or PNG image directly
         file.save(file_path)
-        return f"/{UPLOAD_FOLDER}/{os.path.basename(file_path)}"
+        return f"{UPLOAD_FOLDER}/{os.path.basename(file_path)}"
 
 # Helper function to validate allowed file extensions.
 def allowed_file(filename):
@@ -437,7 +437,6 @@ def add_patient():
     # Render the form for adding a new patient
     return render_template('edit_patient.html', patient=None)
 
-
 # Route for editing an existing patient's details
 @controller.route('/edit_patient/<string:patient_id>', methods=['GET', 'POST'])
 def edit_patient(patient_id):
@@ -468,17 +467,14 @@ def edit_patient(patient_id):
         vital_signs = request.form.get('vitalSigns')
         terms_accepted = request.form.get('terms')
 
-        image_file = request.files['patient_image']
-        image_data = None
+        image_file = request.files.get('patient_image')
+        image_url = None
         if image_file and image_file.filename:
             filename = secure_filename(image_file.filename)
-            file_path = os.path.join(UPLOAD_FOLDER, filename)
-            image_file.save(file_path)
-            with open(file_path, 'rb') as img_file:
-                image_data = img_file.read()
+            image_url = save_image(image_file, filename)  # Use the utility function to handle image saving
 
         # Update patient details in the database
-        if image_data:
+        if image_url:
             cursor.execute("""
                 UPDATE patients
                 SET first_name = %s, last_name = %s, date_of_birth = %s, gender = %s, date_of_visit = %s,
@@ -486,7 +482,7 @@ def edit_patient(patient_id):
                     allergies = %s, vital_signs = %s, patient_image = %s, terms_accepted = %s
                 WHERE patient_id = %s
             """, (first_name, last_name, date_of_birth, gender, date_of_visit, chief_complaint, medical_history,
-                  medications, allergies, vital_signs, image_data, terms_accepted, patient_id))
+                  medications, allergies, vital_signs, image_url, terms_accepted, patient_id))
         else:
             cursor.execute("""
                 UPDATE patients
@@ -501,29 +497,38 @@ def edit_patient(patient_id):
         flash("Patient details updated successfully.", "success")
         return redirect(url_for('view_patients'))
 
-@controller.route('/delete_image/<string:patient_id>/<string:image_url>')
+@controller.route('/delete_image/<string:patient_id>/<path:image_url>')
 def delete_image(patient_id, image_url):
-    department_id = session.get('department_id')  
+    # Check if the user is logged in
     if 'department_id' not in session:
         return redirect(url_for('login'))
     
+    department_id = session.get('department_id')
+    
     cursor = db.cursor(dictionary=True)
     
+    # Retrieve patient images from the database
     cursor.execute("SELECT patient_image FROM patients WHERE patient_id = %s", (patient_id,))
     patient = cursor.fetchone()
+    
     if patient:
-        # Remove the image URL from the database
         current_images = patient['patient_image'].split(",")
+        
+        # Ensure the image URL exists in the list
         if image_url in current_images:
             current_images.remove(image_url)
             new_image_urls = ",".join(current_images)
+            
+            # Update the database with the new list
             cursor.execute("UPDATE patients SET patient_image = %s WHERE patient_id = %s", (new_image_urls, patient_id))
             db.commit()
-
-            # Optionally, delete the physical file from server
-            file_path = os.path.join("static", "uploads", os.path.basename(image_url))
+            
+            # Delete the file from the server
+            file_path = os.path.join("static", image_url)  # Prepend 'static/' to the image URL
             if os.path.exists(file_path):
                 os.remove(file_path)
+    
+    # Redirect back to the patient edit page
     return redirect(url_for('edit_patient', patient_id=patient_id))
 
 @controller.route('/view_images/<string:patient_id>')
@@ -624,7 +629,7 @@ def export_patient_excel(patient_id):
     # Fetch single patient data for the department, using the doctor_id that references department_id
     cursor.execute("""
     SELECT p.patient_id, p.first_name, p.last_name, p.date_of_birth, p.gender, p.date_of_visit,
-           p.chief_complaint, p.medical_history, p.medications, p.allergies, p.vital_signs, p.terms_accepted
+           p.chief_complaint, p.medical_history, p.medications, p.allergies, p.vital_signs, p.terms_accepted,
            p.doctor_id
     FROM patients p
     JOIN doctors d ON p.doctor_id = d.department_id

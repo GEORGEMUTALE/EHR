@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -23,7 +24,8 @@
         }
 
         .flash-message.danger {
-            background-color: #f8d7da; /* Same as error */
+            background-color: #f8d7da;
+            /* Same as error */
             color: #721c24;
         }
 
@@ -35,34 +37,18 @@
         .uppercase-text {
             text-transform: uppercase;
         }
-
-        .image-container {
-            display: inline-block;
-            position: relative;
-        }
-
-        .image-container img {
-            margin-right: 10px;
-        }
-
-        .image-container .btn-danger {
-            position: absolute;
-            top: 0;
-            right: 0;
-            background-color: rgba(255, 0, 0, 0.7);
-            border: none;
-        }
     </style>
 </head>
+
 <body>
     {% with messages = get_flashed_messages(with_categories=True) %}
-        {% if messages %}
-            <div class="flash-messages">
-                {% for category, message in messages %}
-                    <div class="flash-message {{ category }}">{{ message }}</div>
-                {% endfor %}
-            </div>
-        {% endif %}
+    {% if messages %}
+    <div class="flash-messages">
+        {% for category, message in messages %}
+        <div class="flash-message {{ category }}">{{ message }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
     {% endwith %}
 
     <div class="container my-5">
@@ -71,45 +57,59 @@
         <!-- Patient Form -->
         <div class="card mb-4">
             <div class="card-body">
-                <form action="{{ url_for('add_patient') if not patient else url_for('edit_patient', patient_id=patient['patient_id']) }}" 
-                method="POST" enctype="multipart/form-data">
+                <form
+                    action="{{ url_for('add_patient') if not patient else url_for('edit_patient', patient_id=patient['patient_id']) }}"
+                    method="POST" enctype="multipart/form-data">
                     <div class="row">
                         <!-- Basic Information -->
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label for="firstName">First Name</label>
-                                <input type="text" class="form-control uppercase-text" name="first_name" id="firstName" value="{{ patient.first_name if patient else '' }}" placeholder="Enter first name" required>
+                                <input type="text" class="form-control uppercase-text" name="first_name" id="firstName"
+                                    value="{{ patient.first_name if patient else '' }}" placeholder="Enter first name"
+                                    required>
                             </div>
                             <div class="form-group">
                                 <label for="lastName">Last Name</label>
-                                <input type="text" class="form-control uppercase-text" name="last_name" id="lastName" value="{{ patient.last_name if patient else '' }}" placeholder="Enter last name" required>
+                                <input type="text" class="form-control uppercase-text" name="last_name" id="lastName"
+                                    value="{{ patient.last_name if patient else '' }}" placeholder="Enter last name"
+                                    required>
                             </div>
                             <div class="form-group">
                                 <label for="dob">Date of Birth</label>
-                                <input type="date" class="form-control" name="dob" id="dob" value="{{ patient.date_of_birth if patient else '' }}" required>
+                                <input type="date" class="form-control" name="dob" id="dob"
+                                    value="{{ patient.date_of_birth if patient else '' }}" required>
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Gender</label>
                                 <div class="form-check">
-                                    <input type="radio" id="gender_male" name="gender" value="Male" class="form-check-input uppercase-text" required {{ 'checked' if patient.gender == 'Male' else '' }}>
+                                    <input type="radio" id="gender_male" name="gender" value="Male"
+                                        class="form-check-input uppercase-text" required {{ 'checked' if
+                                        patient.gender=='Male' else '' }}>
                                     <label class="form-check-label" for="gender_male">Male</label>
                                 </div>
                                 <div class="form-check">
-                                    <input type="radio" id="gender_female" name="gender" value="Female" class="form-check-input" required {{ 'checked' if patient.gender == 'Female' else '' }}>
+                                    <input type="radio" id="gender_female" name="gender" value="Female"
+                                        class="form-check-input" required {{ 'checked' if patient.gender=='Female'
+                                        else '' }}>
                                     <label class="form-check-label" for="gender_female">Female</label>
                                 </div>
                                 <div class="form-check">
-                                    <input type="radio" id="gender_other" name="gender" value="Other" class="form-check-input" required {{ 'checked' if patient.gender == 'Other' else '' }}>
+                                    <input type="radio" id="gender_other" name="gender" value="Other"
+                                        class="form-check-input" required {{ 'checked' if patient.gender=='Other'
+                                        else '' }}>
                                     <label class="form-check-label" for="gender_other">Other</label>
                                 </div>
                             </div>
                             <div class="form-group">
                                 <label for="dateOfVisit">Date of Visit</label>
-                                <input type="date" class="form-control" name="dateOfVisit" id="dateOfVisit" value="{{ patient.date_of_visit if patient else '' }}" required>
+                                <input type="date" class="form-control" name="dateOfVisit" id="dateOfVisit"
+                                    value="{{ patient.date_of_visit if patient else '' }}" required>
                             </div>
                             <div class="form-group">
                                 <label for="chiefComplaint">Chief Complaint</label>
-                                <textarea class="form-control" name="chiefComplaint" id="chiefComplaint" rows="2" placeholder="Chief complaint">{{ patient.chief_complaint if patient else '' }}</textarea>
+                                <textarea class="form-control" name="chiefComplaint" id="chiefComplaint" rows="2"
+                                    placeholder="Chief complaint">{{ patient.chief_complaint if patient else '' }}</textarea>
                             </div>
                         </div>
 
@@ -117,47 +117,57 @@
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label for="medicalHistory">Medical History</label>
-                                <textarea class="form-control" name="medicalHistory" id="medicalHistory" rows="2" placeholder="E.g., Asthma, Hypertension">{{ patient.medical_history if patient else '' }}</textarea>
+                                <textarea class="form-control" name="medicalHistory" id="medicalHistory" rows="2"
+                                    placeholder="E.g., Asthma, Hypertension">{{ patient.medical_history if patient else '' }}</textarea>
                             </div>
                             <div class="form-group">
                                 <label for="medications">Current Medications</label>
-                                <textarea class="form-control" name="medications" id="medications" rows="2" placeholder="E.g., Albuterol inhaler, Lisinopril">{{ patient.medications if patient else '' }}</textarea>
+                                <textarea class="form-control" name="medications" id="medications" rows="2"
+                                    placeholder="E.g., Albuterol inhaler, Lisinopril">{{ patient.medications if patient else '' }}</textarea>
                             </div>
                             <div class="form-group">
                                 <label for="allergies">Allergies</label>
-                                <input type="text" class="form-control" name="allergies" id="allergies" value="{{ patient.allergies if patient else '' }}" placeholder="E.g., Penicillin (rash)">
+                                <input type="text" class="form-control" name="allergies" id="allergies"
+                                    value="{{ patient.allergies if patient else '' }}"
+                                    placeholder="E.g., Penicillin (rash)">
                             </div>
                             <div class="form-group">
                                 <label for="vitalSigns">Vital Signs</label>
-                                <textarea class="form-control" name="vitalSigns" id="vitalSigns" rows="2" placeholder="E.g., BP: 128/82, HR: 76, Temp: 37.1°C">{{ patient.vital_signs if patient else '' }}</textarea>
+                                <textarea class="form-control" name="vitalSigns" id="vitalSigns" rows="2"
+                                    placeholder="E.g., BP: 128/82, HR: 76, Temp: 37.1°C">{{ patient.vital_signs if patient else '' }}</textarea>
                             </div>
 
                             <!-- Upload Multiple Images -->
                             <div class="form-group">
                                 <label for="uploadImage">Upload Patient Images</label>
-                                <input type="file" class="form-control-file" name="patient_image" id="patient_image" onchange="previewImages(event)" multiple>
+                                <input type="file" class="form-control-file" name="patient_image" id="patient_image"
+                                    onchange="previewImages(event)" multiple>
                             </div>
 
                             <!-- Preview Images -->
                             <div class="form-group" id="imagePreviewContainer">
                                 {% if patient and patient.patient_image %}
-                                    <div class="existing-images">
-                                        {% for img_url in patient.patient_image.split(',') %}
-                                            <div class="image-container mb-2">
-                                                <img src="{{ url_for('static', filename=img_url) }}" alt="Patient Image" class="img-thumbnail" style="width: 100px; height: 100px;">
-                                                <a href="{{ url_for('delete_image', patient_id=patient.patient_id, image_url=img_url.lstrip('/')) }}" class="btn btn-danger btn-sm delete-btn">Delete</a>
-                                            </div>
-                                        {% endfor %}
+                                <div class="existing-images">
+                                    {% for img_url in patient.patient_image.split(',') %}
+                                    <div class="image-container mb-2">
+                                        <img src="{{ url_for('static', filename=img_url) }}" alt="Patient Image"
+                                            class="img-thumbnail" style="width: 100px; height: 100px;">
+                                        <a href="{{ url_for('delete_image', patient_id=patient.patient_id, image_url=img_url) }}"
+                                            class="btn btn-danger btn-sm">Delete</a>
                                     </div>
+                                    {% endfor %}
+                                </div>
                                 {% endif %}
                                 <div id="imagePreview" style="display:none;"></div>
                             </div>
                         </div>
                         <div class="form-check d-flex justify-content-start mb-4 pb-3">
-                            <input class="form-check-input me-3" type="checkbox" value="Accepted" id="terms" name="terms" 
-                                   {% if patient and patient.terms_accepted == 'Accepted' %} checked {% endif %} />
+                            <input class="form-check-input me-3" type="checkbox" value="Accepted" id="terms"
+                                name="terms" {% if patient and patient.terms_accepted=='Accepted' %} checked {% endif
+                                %} />
                             <label class="form-check-label text-black" for="terms">
-                                I hereby declare my agreement and acceptance of the data protection regulations by this medical facility. If I don't, I cannot use the application.
+                                I hereby declare my agreement and acceptance of the data protection regulations by this
+                                medical facility. If I don't, I cannot use the application.
                             </label>
                         </div>
                     </div>
@@ -175,9 +185,9 @@
 
             var files = event.target.files;
             if (files) {
-                Array.from(files).forEach(function(file) {
+                Array.from(files).forEach(function (file) {
                     var reader = new FileReader();
-                    reader.onload = function(e) {
+                    reader.onload = function (e) {
                         var imgElement = document.createElement("img");
                         imgElement.src = e.target.result;
                         imgElement.classList.add("img-thumbnail");
@@ -192,4 +202,5 @@
     </script>
 
 </body>
+
 </html>

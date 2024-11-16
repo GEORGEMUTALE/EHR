@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Update Profile</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body>
+  <section class="h-100 h-custom">
+    <div class="container py-5 h-100">
+      <div class="row d-flex justify-content-center align-items-center h-100">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-body p-0">
+              <form action="{{ url_for('update_profile') }}" method="post">
+                <div class="row g-0">
+                  <div class="col-md-6 p-5">
+                    <h3 class="fw-normal mb-5" style="color: #00b4d8;">Department Information</h3>
+
+                    <!-- Title Field -->
+                    <div class="mb-4 pb-2">
+                      <select name="title" class="form-control" required>
+                        <option value="Dr." {% if doctor['title'] == 'Dr.' %} selected {% endif %}>Dr.</option>
+                        <option value="Np." {% if doctor['title'] == 'Np.' %} selected {% endif %}>Np.</option>
+                        <option value="Mlt" {% if doctor['title'] == 'Mlt' %} selected {% endif %}>Mlt.</option>
+                        <option value="Fd." {% if doctor['title'] == 'Fd.' %} selected {% endif %}>Fd.</option>
+                      </select>
+                    </div>
+
+                    <!-- Other Fields -->
+                    <div class="mb-4 pb-2">
+                      <input type="text" name="department_id" value="{{ doctor['department_id'] }}" class="form-control" required>
+                    </div>
+
+                    <div class="mb-4 pb-2">
+                      <input type="text" name="first_name" value="{{ doctor['first_name'] }}" class="form-control" required>
+                    </div>
+
+                    <div class="mb-4 pb-2">
+                      <input type="text" name="last_name" value="{{ doctor['last_name'] }}" class="form-control" required>
+                    </div>
+
+                    <div class="mb-4 pb-2">
+                      <input type="date" name="dob" value="{{ doctor['dob'] }}" class="form-control" required>
+                    </div>
+
+                    <!-- Gender Field (Radio buttons) -->
+                    <div class="mb-4 pb-2">
+                      <label class="form-label">Gender</label><br>
+                      <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="gender" value="Male" {% if doctor['gender'] == 'Male' %} checked {% endif %}>
+                        <label class="form-check-label" for="genderMale">Male</label>
+                      </div>
+                      <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="gender" value="Female" {% if doctor['gender'] == 'Female' %} checked {% endif %}>
+                        <label class="form-check-label" for="genderFemale">Female</label>
+                      </div>
+                      <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="gender" value="Other" {% if doctor['gender'] == 'Other' %} checked {% endif %}>
+                        <label class="form-check-label" for="genderOther">Other</label>
+                      </div>
+                    </div>
+
+                    <div class="mb-4 pb-2">
+                      <select name="position" class="form-control" required>
+                        <option value="Medical Doctor" {% if doctor['position'] == 'Medical Doctor' %} selected {% endif %}>Medical Doctor</option>
+                        <option value="Nurse" {% if doctor['position'] == 'Nurse' %} selected {% endif %}>Nurse</option>
+                        <option value="Medical Laboratory Technician" {% if doctor['position'] == 'Medical Laboratory Technician' %} selected {% endif %}>Medical Laboratory Technician</option>
+                      </select>
+                    </div>
+
+                    <div class="mb-4 pb-2">
+                      <input type="text" name="street" value="{{ doctor['street'] }}" class="form-control" required>
+                    </div>
+
+                    <div class="mb-4 pb-2">
+                      <input type="text" name="zip_code" value="{{ doctor['zip_code'] }}" class="form-control" required>
+                    </div>
+
+                    <div class="mb-4 pb-2">
+                      <input type="text" name="place" value="{{ doctor['place'] }}" class="form-control">
+                    </div>
+
+                    <div class="mb-4 pb-2">
+                      <input type="text" name="country" value="{{ doctor['country'] }}" class="form-control" required>
+                    </div>
+
+                    <div class="mb-4 pb-2">
+                      <input type="tel" name="phone" value="{{ doctor['phone'] }}" class="form-control">
+                    </div>
+
+                    <div class="mb-4 pb-2">
+                      <input type="email" name="email" value="{{ doctor['email'] }}" class="form-control" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-lg">Update Profile</button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</body>
+
+</html>
