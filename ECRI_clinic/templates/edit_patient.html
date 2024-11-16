@@ -145,7 +145,7 @@
                                         {% for img_url in patient.patient_image.split(',') %}
                                             <div class="image-container mb-2">
                                                 <img src="{{ url_for('static', filename=img_url) }}" alt="Patient Image" class="img-thumbnail" style="width: 100px; height: 100px;">
-                                                <a href="{{ url_for('delete_image', patient_id=patient.patient_id, image_url=img_url) }}" class="btn btn-danger btn-sm">Delete</a>
+                                                <a href="{{ url_for('delete_image', patient_id=patient.patient_id, image_url=img_url.lstrip('/')) }}" class="btn btn-danger btn-sm delete-btn">Delete</a>
                                             </div>
                                         {% endfor %}
                                     </div>
