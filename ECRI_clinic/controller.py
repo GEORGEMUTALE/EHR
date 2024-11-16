@@ -524,7 +524,7 @@ def delete_image(patient_id, image_url):
             db.commit()
             
             # Delete the file from the server
-            file_path = os.path.join("static", image_url)  # Prepend 'static/' to the image URL
+            file_path = os.path.join(image_url) 
             if os.path.exists(file_path):
                 os.remove(file_path)
     
