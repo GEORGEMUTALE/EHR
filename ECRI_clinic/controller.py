@@ -130,9 +130,9 @@ def forgot_password():
             msg.body = f'The link expires in 5 minutes. We request you utilise the time and Click the link below to reset your password: {reset_link}'
             mail.send(msg)
             
-            return "Password reset link has been sent to your email."
+            flash("Password reset link has been sent to your email.", "success")
 
-        return "Email address is not registered."
+        flash("Email address is not registered.", "danger") 
     
     return render_template('forgot_password.html')
 
@@ -188,7 +188,7 @@ def signup():
 
         # Password validation
         if password != confirm_password:
-            flash("Passwords do not match.")
+            flash("Passwords do not match.", "warning")
             return redirect(url_for('signup'))
         
         if not re.match(r'^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&#!])[A-Za-z\d@$!%*?&#!]{8,}$', password):
@@ -199,7 +199,7 @@ def signup():
         
         # Basic email format check
         if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
-            flash("Invalid email format.")
+            flash("Invalid email format.", "danger")
             return redirect(url_for('signup'))
 
         try:
@@ -225,7 +225,7 @@ def signup():
             return redirect(url_for('login'))
 
         except mysql.connector.Error as err:
-            flash(f"Database error: {err}")
+            flash(f"Database error: {err}", "warning")
             return redirect(url_for('signup'))
 
     return render_template('signup_form.html')
@@ -255,7 +255,7 @@ def update_profile():
 
         # Basic email format check
         if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
-            flash("Invalid email format.")
+            flash("Invalid email format.", "danger")
             return redirect(url_for('update_profile'))
 
         try:
@@ -279,11 +279,11 @@ def update_profile():
             msg.html = f"<h3>Hello {first_name} {last_name},</h3><p>Your profile information has been successfully updated!</p>"
             mail.send(msg)
 
-            flash("Profile updated successfully!")
+            flash("Profile updated successfully!", "success")
             return redirect(url_for('view_patients'))
 
         except mysql.connector.Error as err:
-            flash(f"Database error: {err}")
+            flash(f"Database error: {err}", "danger")
             return redirect(url_for('update_profile'))
 
     else:
@@ -384,19 +384,31 @@ def logout():
         return redirect(url_for('login'))
     
     session.clear()
-    flash("You have been logged out.")
+    flash("You have been logged out.", "success")
     return redirect(url_for('login'))
-# Route to add a new patient.
-@controller.route('/add_patient', methods=['GET', 'POST'])
-def add_patient():
-    department_id = session.get('department_id')  
+
+@controller.route('/patient/<patient_id>', methods=['GET', 'POST'])
+@controller.route('/add_patient', methods=['GET', 'POST'])  # To handle the 'Add Patient' case without an ID
+def work_patient(patient_id=None):
+    department_id = session.get('department_id')
     if not department_id:
         return redirect(url_for('login'))
-    
+
+    # If patient_id is provided, it's an edit case; otherwise, it's a new patient
+    if patient_id:
+        # Fetch the existing patient details from the database
+        cursor.execute("SELECT * FROM patients WHERE patient_id = %s", (patient_id,))
+        patient = cursor.fetchone()
+        if not patient:
+            flash("Patient not found.", "error")
+            return redirect(url_for('view_patients'))
+    else:
+        patient = None  # No patient data for new patient
+
     if request.method == 'POST':
         # Collect form data
-        first_name = request.form.get('first_name').strip.upper()
-        last_name = request.form.get('last_name').strip.upper()
+        first_name = request.form.get('first_name').strip().upper()
+        last_name = request.form.get('last_name').strip().upper()
         date_of_birth = request.form.get('dob')
         gender = request.form.get('gender').upper()
         date_of_visit = request.form.get('dateOfVisit')
@@ -405,9 +417,14 @@ def add_patient():
         medications = request.form.get('medications')
         allergies = request.form.get('allergies')
         vital_signs = request.form.get('vitalSigns')
-        doctor_id = department_id
-        patient_id = generate_id(first_name, last_name, "patients")
         terms_accepted = request.form.get('terms')
+        
+        # Generate patient_id if it's a new patient
+        if not patient:
+            patient_id = generate_id(first_name, last_name, "patients")
+            doctor_id = department_id
+        else:
+            doctor_id = patient['doctor_id']  # Use the existing doctor's ID
 
         # Process images and save URLs
         image_urls = []
@@ -418,18 +435,31 @@ def add_patient():
                 image_url = save_image(file, filename)
                 image_urls.append(image_url)
 
-        # Insert patient data including image URLs into the database
-        cursor.execute(""" 
-            INSERT INTO patients (patient_id, first_name, last_name, date_of_birth, gender, date_of_visit, 
-                                  chief_complaint, medical_history, medications, allergies, vital_signs, patient_image, terms_accepted, doctor_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (patient_id, first_name, last_name, date_of_birth, gender, date_of_visit, chief_complaint,
-              medical_history, medications, allergies, vital_signs, ",".join(image_urls), terms_accepted, doctor_id))
-        db.commit()
+        # Insert or update patient data including image URLs into the database
+        if patient:
+            # Update existing patient data
+            cursor.execute("""
+                UPDATE patients SET first_name = %s, last_name = %s, date_of_birth = %s, gender = %s,
+                date_of_visit = %s, chief_complaint = %s, medical_history = %s, medications = %s, allergies = %s,
+                vital_signs = %s, patient_image = %s, terms_accepted = %s, doctor_id = %s
+                WHERE patient_id = %s
+            """, (first_name, last_name, date_of_birth, gender, date_of_visit, chief_complaint,
+                  medical_history, medications, allergies, vital_signs, ",".join(image_urls), terms_accepted, doctor_id, patient_id))
+        else:
+            # Insert new patient data
+            cursor.execute("""
+                INSERT INTO patients (patient_id, first_name, last_name, date_of_birth, gender, date_of_visit,
+                                      chief_complaint, medical_history, medications, allergies, vital_signs, patient_image, terms_accepted, doctor_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (patient_id, first_name, last_name, date_of_birth, gender, date_of_visit, chief_complaint,
+                  medical_history, medications, allergies, vital_signs, ",".join(image_urls), terms_accepted, doctor_id))
 
+        db.commit()
+        flash("Patient details saved successfully.", "success")
         return redirect(url_for('view_patients'))
 
-    return render_template('edit_patient.html')
+    # Render the template, passing the patient data (or None for a new patient)
+    return render_template('edit_patient.html', patient=patient)
 
 @controller.route('/delete_image/<string:patient_id>/<string:image_url>')
 def delete_image(patient_id, image_url):
@@ -651,6 +681,7 @@ def export_patient_excel(patient_id):
     return send_file(output, as_attachment=True,
                      download_name=f'{patient_data["patient_id"]}_patient.xlsx',
                      mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+                     
 @controller.route('/search', methods=['GET'])
 def search():
     department_id = session.get('department_id')  
