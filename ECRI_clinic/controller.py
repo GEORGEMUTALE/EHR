@@ -171,24 +171,24 @@ def signup():
         # Retrieve form data
         title = request.form.get('title')
         department_id = request.form.get('department_id')
-        first_name = request.form.get('first_name')
-        last_name = request.form.get('last_name')
+        first_name = request.form.get('first_name').upper()
+        last_name = request.form.get('last_name').upper()
         date_of_birth = request.form.get('dob')
         gender = request.form.get('gender')
-        position = request.form.get('position')
+        position = request.form.get('position').upper()
         password = request.form.get('createPassword')
         confirm_password = request.form.get('repeatPassword')
         street = request.form.get('street')
         zip_code = request.form.get('zip_code')
-        place = request.form.get('place')
-        country = request.form.get('country')
+        place = request.form.get('place').upper()
+        country = request.form.get('country').upper()
         phone = request.form.get('phone')
         email = request.form.get('email')
         terms_accepted = request.form.get('terms')
 
         # Password validation
         if password != confirm_password:
-            flash("Passwords do not match.", "warning")
+            flash("Passwords do not match.", "danger")
             return redirect(url_for('signup'))
         
         if not re.match(r'^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&#!])[A-Za-z\d@$!%*?&#!]{8,}$', password):
@@ -221,7 +221,7 @@ def signup():
             msg.html = f"<h3>Hello {first_name} {last_name},</h3><p>Thank you for registering with us!</p>"
             mail.send(msg)
 
-            flash("Signup successful!")
+            flash("Signup successful!", "Success")
             return redirect(url_for('login'))
 
         except mysql.connector.Error as err:
@@ -244,9 +244,9 @@ def update_profile():
         first_name = request.form.get('first_name').upper()
         last_name = request.form.get('last_name').upper()
         date_of_birth = request.form.get('dob')
-        gender = request.form.get('gender').upper()
+        gender = request.form.get('gender')
         position = request.form.get('position').upper()
-        street = request.form.get('street').upper()
+        street = request.form.get('street')
         zip_code = request.form.get('zip_code')
         place = request.form.get('place').upper()
         country = request.form.get('country').upper()
@@ -397,8 +397,8 @@ def add_patient():
     # Handle form submission (POST)
     if request.method == 'POST':
         # Collect form data
-        first_name = request.form.get('first_name').strip().upper()
-        last_name = request.form.get('last_name').strip().upper()
+        first_name = request.form.get('first_name').upper()
+        last_name = request.form.get('last_name').upper()
         date_of_birth = request.form.get('dob')
         gender = request.form.get('gender').upper()
         date_of_visit = request.form.get('dateOfVisit')

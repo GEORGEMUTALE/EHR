@@ -22,7 +22,8 @@
                   <div class="col-lg-6">
                     <!-- Title Field -->
                     <div class="mb-3">
-                      <select name="title" class="form-control" required>
+                      <label for="title" class="form-label">Title</label>
+                      <select id="title" name="title" class="form-control" required>
                         <option value="Dr." {% if doctor['title'] == 'Dr.' %} selected {% endif %}>Dr.</option>
                         <option value="Np." {% if doctor['title'] == 'Np.' %} selected {% endif %}>Np.</option>
                         <option value="Mlt" {% if doctor['title'] == 'Mlt' %} selected {% endif %}>Mlt.</option>
@@ -32,41 +33,50 @@
 
                     <!-- Department ID -->
                     <div class="mb-3">
-                      <input type="text" name="department_id" value="{{ doctor['department_id'] }}" class="form-control" placeholder="Department ID" required>
+                      <label for="department_id" class="form-label">Department ID</label>
+                      <input type="text" id="department_id" name="department_id" value="{{ doctor['department_id'] }}" class="form-control" required>
                     </div>
 
                     <!-- First Name -->
                     <div class="mb-3">
-                      <input type="text" name="first_name" value="{{ doctor['first_name'] }}" class="form-control" placeholder="First Name" required>
+                      <label for="first_name" class="form-label">First Name</label>
+                      <input type="text" id="first_name" name="first_name" value="{{ doctor['first_name'] }}" class="form-control" required>
                     </div>
 
                     <!-- Last Name -->
                     <div class="mb-3">
-                      <input type="text" name="last_name" value="{{ doctor['last_name'] }}" class="form-control" placeholder="Last Name" required>
+                      <label for="last_name" class="form-label">Last Name</label>
+                      <input type="text" id="last_name" name="last_name" value="{{ doctor['last_name'] }}" class="form-control" required>
                     </div>
 
                     <!-- Date of Birth -->
                     <div class="mb-3">
-                      <input type="date" name="dob" value="{{ doctor['dob'] }}" class="form-control" required>
+                      <label for="dob" class="form-label">Date of Birth</label>
+                      <input type="date" id="dob" name="dob" value="{{ doctor['date_of_birth'] }}" class="form-control" required>
                     </div>
 
                     <!-- Gender -->
                     <div class="mb-3">
                       <label class="form-label">Gender</label><br>
                       <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" id="genderMale" name="gender" value="Male" 
-                               {% if doctor['gender'] == 'Male' %} checked {% endif %}>
+                        <input class="form-check-input" type="radio" id="genderMale" name="gender" value="MALE" 
+                               {% if doctor['gender'] == 'MALE' %} checked {% endif %}>
                         <label class="form-check-label" for="genderMale">Male</label>
                       </div>
                       <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" id="genderFemale" name="gender" value="Female" 
-                               {% if doctor['gender'] == 'Female' %} checked {% endif %}>
+                        <input class="form-check-input" type="radio" id="genderFemale" name="gender" value="FEMALE" 
+                               {% if doctor['gender'] == 'FEMALE' %} checked {% endif %}>
                         <label class="form-check-label" for="genderFemale">Female</label>
                       </div>
                       <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" id="genderOther" name="gender" value="Other" 
-                               {% if doctor['gender'] == 'Other' %} checked {% endif %}>
+                        <input class="form-check-input" type="radio" id="genderOther" name="gender" value="OTHER" 
+                               {% if doctor['gender'] == 'OTHER' %} checked {% endif %}>
                         <label class="form-check-label" for="genderOther">Other</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" id="gender_prefer_not_to_say" name="gender" value="Prefer_not_to_say" 
+                               {% if doctor['gender'] == 'Prefer_not_to_say' %} checked {% endif %} required>
+                        <label class="form-check-label" for="gender_prefer_not_to_say">Prefer not to say</label>
                       </div>
                     </div>
                   </div>
@@ -75,40 +85,47 @@
                   <div class="col-lg-6">
                     <!-- Position -->
                     <div class="mb-3">
-                      <select name="position" class="form-control" required>
-                        <option value="Medical Doctor" {% if doctor['position'] == 'Medical Doctor' %} selected {% endif %}>Medical Doctor</option>
+                      <label for="position" class="form-label">Position</label>
+                      <select id="position" name="position" class="form-control" required>
+                        <option value="Medical_Doctor" {% if doctor['position'] == 'Medical_Doctor' %} selected {% endif %}>Medical Doctor</option>
                         <option value="Nurse" {% if doctor['position'] == 'Nurse' %} selected {% endif %}>Nurse</option>
-                        <option value="Medical Laboratory Technician" {% if doctor['position'] == 'Medical Laboratory Technician' %} selected {% endif %}>Medical Laboratory Technician</option>
+                        <option value="Medical_Laboratory_Technician" {% if doctor['position'] == 'Medical_Laboratory_Technician' %} selected {% endif %}>Medical Laboratory Technician</option>
                       </select>
                     </div>
 
                     <!-- Address -->
                     <div class="mb-3">
-                      <input type="text" name="street" value="{{ doctor['street'] }}" class="form-control" placeholder="Street" required>
+                      <label for="street" class="form-label">Street</label>
+                      <input type="text" id="street" name="street" value="{{ doctor['street'] }}" class="form-control" required>
                     </div>
                     <div class="mb-3">
-                      <input type="text" name="zip_code" value="{{ doctor['zip_code'] }}" class="form-control" placeholder="ZIP Code" required>
+                      <label for="zip_code" class="form-label">ZIP Code</label>
+                      <input type="text" id="zip_code" name="zip_code" value="{{ doctor['zip_code'] }}" class="form-control" required>
                     </div>
                     <div class="mb-3">
-                      <input type="text" name="place" value="{{ doctor['place'] }}" class="form-control" placeholder="Place">
+                      <label for="place" class="form-label">Place</label>
+                      <input type="text" id="place" name="place" value="{{ doctor['place'] }}" class="form-control">
                     </div>
                     <div class="mb-3">
-                      <input type="text" name="country" value="{{ doctor['country'] }}" class="form-control" placeholder="Country" required>
+                      <label for="country" class="form-label">Country</label>
+                      <input type="text" id="country" name="country" value="{{ doctor['country'] }}" class="form-control" required>
                     </div>
 
                     <!-- Contact -->
                     <div class="mb-3">
-                      <input type="tel" name="phone" value="{{ doctor['phone'] }}" class="form-control" placeholder="Phone">
+                      <label for="phone" class="form-label">Phone</label>
+                      <input type="tel" id="phone" name="phone" value="{{ doctor['phone'] }}" class="form-control">
                     </div>
                     <div class="mb-3">
-                      <input type="email" name="email" value="{{ doctor['email'] }}" class="form-control" placeholder="Email" required>
+                      <label for="email" class="form-label">Email</label>
+                      <input type="email" id="email" name="email" value="{{ doctor['email'] }}" class="form-control" required>
                     </div>
                   </div>
                 </div>
 
                 <!-- Submit Button -->
                 <div class="text-center">
-                  <button type="submit" class="btn btn-primary btn-lg">Update Profile</button>
+                  <button type="submit" class="btn btn-lg" style="background-color: #00b4d8; color: white;">Update Profile</button>
                 </div>
               </form>
             </div>
