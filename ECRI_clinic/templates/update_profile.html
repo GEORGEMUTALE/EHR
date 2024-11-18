@@ -14,14 +14,14 @@
       <div class="row d-flex justify-content-center align-items-center h-100">
         <div class="col-12">
           <div class="card">
-            <div class="card-body p-0">
+            <div class="card-body">
               <form action="{{ url_for('update_profile') }}" method="post">
-                <div class="row g-0">
-                  <div class="col-md-6 p-5">
-                    <h3 class="fw-normal mb-5" style="color: #00b4d8;">Department Information</h3>
-
+                <h3 class="fw-normal mb-4" style="color: #00b4d8;">Update Profile</h3>
+                <div class="row">
+                  <!-- Left Column -->
+                  <div class="col-lg-6">
                     <!-- Title Field -->
-                    <div class="mb-4 pb-2">
+                    <div class="mb-3">
                       <select name="title" class="form-control" required>
                         <option value="Dr." {% if doctor['title'] == 'Dr.' %} selected {% endif %}>Dr.</option>
                         <option value="Np." {% if doctor['title'] == 'Np.' %} selected {% endif %}>Np.</option>
@@ -30,41 +30,51 @@
                       </select>
                     </div>
 
-                    <!-- Other Fields -->
-                    <div class="mb-4 pb-2">
-                      <input type="text" name="department_id" value="{{ doctor['department_id'] }}" class="form-control" required>
+                    <!-- Department ID -->
+                    <div class="mb-3">
+                      <input type="text" name="department_id" value="{{ doctor['department_id'] }}" class="form-control" placeholder="Department ID" required>
                     </div>
 
-                    <div class="mb-4 pb-2">
-                      <input type="text" name="first_name" value="{{ doctor['first_name'] }}" class="form-control" required>
+                    <!-- First Name -->
+                    <div class="mb-3">
+                      <input type="text" name="first_name" value="{{ doctor['first_name'] }}" class="form-control" placeholder="First Name" required>
                     </div>
 
-                    <div class="mb-4 pb-2">
-                      <input type="text" name="last_name" value="{{ doctor['last_name'] }}" class="form-control" required>
+                    <!-- Last Name -->
+                    <div class="mb-3">
+                      <input type="text" name="last_name" value="{{ doctor['last_name'] }}" class="form-control" placeholder="Last Name" required>
                     </div>
 
-                    <div class="mb-4 pb-2">
+                    <!-- Date of Birth -->
+                    <div class="mb-3">
                       <input type="date" name="dob" value="{{ doctor['dob'] }}" class="form-control" required>
                     </div>
 
-                    <!-- Gender Field (Radio buttons) -->
-                    <div class="mb-4 pb-2">
+                    <!-- Gender -->
+                    <div class="mb-3">
                       <label class="form-label">Gender</label><br>
                       <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" name="gender" value="Male" {% if doctor['gender'] == 'Male' %} checked {% endif %}>
+                        <input class="form-check-input" type="radio" id="genderMale" name="gender" value="Male" 
+                               {% if doctor['gender'] == 'Male' %} checked {% endif %}>
                         <label class="form-check-label" for="genderMale">Male</label>
                       </div>
                       <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" name="gender" value="Female" {% if doctor['gender'] == 'Female' %} checked {% endif %}>
+                        <input class="form-check-input" type="radio" id="genderFemale" name="gender" value="Female" 
+                               {% if doctor['gender'] == 'Female' %} checked {% endif %}>
                         <label class="form-check-label" for="genderFemale">Female</label>
                       </div>
                       <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" name="gender" value="Other" {% if doctor['gender'] == 'Other' %} checked {% endif %}>
+                        <input class="form-check-input" type="radio" id="genderOther" name="gender" value="Other" 
+                               {% if doctor['gender'] == 'Other' %} checked {% endif %}>
                         <label class="form-check-label" for="genderOther">Other</label>
                       </div>
                     </div>
+                  </div>
 
-                    <div class="mb-4 pb-2">
+                  <!-- Right Column -->
+                  <div class="col-lg-6">
+                    <!-- Position -->
+                    <div class="mb-3">
                       <select name="position" class="form-control" required>
                         <option value="Medical Doctor" {% if doctor['position'] == 'Medical Doctor' %} selected {% endif %}>Medical Doctor</option>
                         <option value="Nurse" {% if doctor['position'] == 'Nurse' %} selected {% endif %}>Nurse</option>
@@ -72,32 +82,33 @@
                       </select>
                     </div>
 
-                    <div class="mb-4 pb-2">
-                      <input type="text" name="street" value="{{ doctor['street'] }}" class="form-control" required>
+                    <!-- Address -->
+                    <div class="mb-3">
+                      <input type="text" name="street" value="{{ doctor['street'] }}" class="form-control" placeholder="Street" required>
+                    </div>
+                    <div class="mb-3">
+                      <input type="text" name="zip_code" value="{{ doctor['zip_code'] }}" class="form-control" placeholder="ZIP Code" required>
+                    </div>
+                    <div class="mb-3">
+                      <input type="text" name="place" value="{{ doctor['place'] }}" class="form-control" placeholder="Place">
+                    </div>
+                    <div class="mb-3">
+                      <input type="text" name="country" value="{{ doctor['country'] }}" class="form-control" placeholder="Country" required>
                     </div>
 
-                    <div class="mb-4 pb-2">
-                      <input type="text" name="zip_code" value="{{ doctor['zip_code'] }}" class="form-control" required>
+                    <!-- Contact -->
+                    <div class="mb-3">
+                      <input type="tel" name="phone" value="{{ doctor['phone'] }}" class="form-control" placeholder="Phone">
                     </div>
-
-                    <div class="mb-4 pb-2">
-                      <input type="text" name="place" value="{{ doctor['place'] }}" class="form-control">
+                    <div class="mb-3">
+                      <input type="email" name="email" value="{{ doctor['email'] }}" class="form-control" placeholder="Email" required>
                     </div>
-
-                    <div class="mb-4 pb-2">
-                      <input type="text" name="country" value="{{ doctor['country'] }}" class="form-control" required>
-                    </div>
-
-                    <div class="mb-4 pb-2">
-                      <input type="tel" name="phone" value="{{ doctor['phone'] }}" class="form-control">
-                    </div>
-
-                    <div class="mb-4 pb-2">
-                      <input type="email" name="email" value="{{ doctor['email'] }}" class="form-control" required>
-                    </div>
-
-                    <button type="submit" class="btn btn-primary btn-lg">Update Profile</button>
                   </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="text-center">
+                  <button type="submit" class="btn btn-primary btn-lg">Update Profile</button>
                 </div>
               </form>
             </div>
