@@ -15,49 +15,65 @@ from pydicom import dcmread
 from datetime import datetime
 from PIL import Image
 import numpy as np
+from dotenv import load_dotenv
 
 
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
-# Path where uploaded images will be stored (e.g., within the 'static' directory)
 
-# Initialize the Flask app and Mail
+# Load environment variables from .env
+load_dotenv()
+
+# Flask app and configurations
 controller = Flask(__name__)
-UPLOAD_FOLDER = 'static/uploads'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'dcm'}
-controller.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-# Configuration
-controller.secret_key = 'Health01'
-controller.config['MAIL_SERVER'] = 'smtp.gmail.com'
-controller.config['MAIL_PORT'] = 587
-controller.config['MAIL_USE_TLS'] = True  # or False if using SSL and MAIL_PORT is 465
-controller.config['MAIL_USE_SSL'] = False  # or True if using SSL
-controller.config['MAIL_USERNAME'] = 'mutalegeorge367@gmail.com'
-controller.config['MAIL_PASSWORD'] = 'hqqwbjuwzohvyszk' 
+controller.secret_key = os.getenv('SECRET_KEY')
+controller.config['UPLOAD_FOLDER'] = os.getenv('UPLOAD_FOLDER')
+ALLOWED_EXTENSIONS = set(os.getenv('ALLOWED_EXTENSIONS').split(','))
+
+# Mail configurations
+controller.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER')
+controller.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT'))
+controller.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS') == 'True'
+controller.config['MAIL_USE_SSL'] = os.getenv('MAIL_USE_SSL') == 'True'
+controller.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
+controller.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
+
 mail = Mail(controller)
 s = URLSafeTimedSerializer(controller.secret_key)
-# Google OAuth Configuration
+
+# Google OAuth configuration
 google_bp = make_google_blueprint(
-    client_id="218393485164-ueft5o9k841djcrdp8f6a0dkdcm70ktn.apps.googleusercontent.com",
-    client_secret="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",
+    client_id=os.getenv('GOOGLE_CLIENT_ID'),
+    client_secret=os.getenv('GOOGLE_CLIENT_SECRET'),
     redirect_to="google_login",
-    scope=["openid", "https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"]
+    scope=[
+        "openid",
+        "https://www.googleapis.com/auth/userinfo.email",
+        "https://www.googleapis.com/auth/userinfo.profile"
+    ]
 )
 controller.register_blueprint(google_bp, url_prefix="/google_login")
 
-
-# Establish a global database connection and cursor
+# Database connection
 db = mysql.connector.connect(
-    host="localhost",
-    user="root",
-    password="",
-    database="clinic_data"
+    host=os.getenv('DB_HOST'),
+    user=os.getenv('DB_USER'),
+    password=os.getenv('DB_PASSWORD'),
+    database=os.getenv('DB_NAME')
 )
-
 cursor = db.cursor()
+
+# Set additional environment variables
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = os.getenv('OAUTHLIB_INSECURE_TRANSPORT', '1')
 
 # Utility function to save the image and return the URL path
 def save_image(file, filename):
+     # Retrieve UPLOAD_FOLDER from the environment variable
+    UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER')
+    if not UPLOAD_FOLDER:
+        raise EnvironmentError("UPLOAD_FOLDER environment variable is not set.")
+
+    # Ensure the upload folder exists
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
     """Saves uploaded image, converts DICOM if needed, and returns its URL path."""
     file_path = os.path.join(UPLOAD_FOLDER, filename)
     
@@ -467,35 +483,31 @@ def edit_patient(patient_id):
         vital_signs = request.form.get('vitalSigns')
         terms_accepted = request.form.get('terms')
 
-        image_file = request.files.get('patient_image')
-        image_url = None
-        if image_file and image_file.filename:
-            filename = secure_filename(image_file.filename)
-            image_url = save_image(image_file, filename)  # Use the utility function to handle image saving
+    image_file = request.files.get('patient_image')
+    image_url = None
 
-        # Update patient details in the database
-        if image_url:
-            cursor.execute("""
-                UPDATE patients
-                SET first_name = %s, last_name = %s, date_of_birth = %s, gender = %s, date_of_visit = %s,
-                    chief_complaint = %s, medical_history = %s, medications = %s, 
-                    allergies = %s, vital_signs = %s, patient_image = %s, terms_accepted = %s
-                WHERE patient_id = %s
-            """, (first_name, last_name, date_of_birth, gender, date_of_visit, chief_complaint, medical_history,
-                  medications, allergies, vital_signs, image_url, terms_accepted, patient_id))
-        else:
-            cursor.execute("""
-                UPDATE patients
-                SET first_name = %s, last_name = %s, date_of_birth = %s, gender = %s, date_of_visit = %s,
-                    chief_complaint = %s, medical_history = %s, medications = %s, 
-                    allergies = %s, vital_signs = %s, terms_accepted = %s
-                WHERE patient_id = %s
-            """, (first_name, last_name, date_of_birth, gender, date_of_visit, chief_complaint, medical_history,
-                  medications, allergies, vital_signs, terms_accepted, patient_id))
+    if image_file and image_file.filename:  # A new image is uploaded
+        filename = secure_filename(image_file.filename)
+        image_url = save_image(image_file, filename)  # Use utility function to handle image saving
+    else:  # No new image uploaded, retain the existing image
+        cursor.execute("SELECT patient_image FROM patients WHERE patient_id = %s", (patient_id,))
+        existing_image = cursor.fetchone()
+        image_url = existing_image['patient_image'] if existing_image else None
 
-        db.commit()
-        flash("Patient details updated successfully.", "success")
-        return redirect(url_for('view_patients'))
+    # Update patient details in the database
+    cursor.execute("""
+        UPDATE patients
+        SET first_name = %s, last_name = %s, date_of_birth = %s, gender = %s, date_of_visit = %s,
+            chief_complaint = %s, medical_history = %s, medications = %s, 
+            allergies = %s, vital_signs = %s, patient_image = %s, terms_accepted = %s
+        WHERE patient_id = %s
+    """, (first_name, last_name, date_of_birth, gender, date_of_visit, chief_complaint, medical_history,
+          medications, allergies, vital_signs, image_url, terms_accepted, patient_id))
+
+    db.commit()
+    flash("Patient details updated successfully.", "success")
+    return redirect(url_for('view_patients'))
+
 
 @controller.route('/delete_image/<string:patient_id>/<path:image_url>')
 def delete_image(patient_id, image_url):
@@ -662,30 +674,45 @@ def export_patient_excel(patient_id):
     return send_file(output, as_attachment=True,
                      download_name=f'{patient_data["patient_id"]}_patient.xlsx',
                      mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-                     
 @controller.route('/search', methods=['GET'])
 def search():
-    department_id = session.get('department_id')  
     # Ensure doctor is logged in
-    if 'department_id' not in session:
-        return redirect(url_for('login'))
+    department_id = session.get('department_id')
+    if not department_id:
+        return redirect(url_for('login'))  # Redirect to login if not authenticated
+
+    # Fetch the corresponding doctor_id based on department_id
+    cursor = db.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT department_id FROM doctors WHERE department_id = %s
+    """, (department_id,))
+    doctor = cursor.fetchone()
     
-    query = request.args.get('query', '').upper()
-    cursor = db.cursor(dictionary=True)  
-    
+    if not doctor:
+        return "No associated doctor found for this department.", 404  # Handle no doctor found
+
+    doctor_id = doctor['department_id']
+
+    # Get the search query (default is an empty string)
+    query = request.args.get('query', '').strip()
+
     if query:
         # Use LIKE for partial matching
         cursor.execute("""
             SELECT * FROM patients 
-            WHERE first_name LIKE %s OR last_name LIKE %s
-        """, (f"%{query}%", f"%{query}%"))
+            WHERE doctor_id = %s AND (first_name LIKE %s OR last_name LIKE %s)
+        """, (doctor_id, f"%{query.upper()}%", f"%{query.upper()}%"))
     else:
-        cursor.execute("SELECT * FROM patients")
-    
-    patients = cursor.fetchall()
+        # Fetch all patients for the logged-in doctor
+        cursor.execute("""
+            SELECT * FROM patients
+            WHERE doctor_id = %s
+        """, (doctor_id,))
+
+    patients = cursor.fetchall()  # Fetch all matching records
+    cursor.close()  # Close the cursor after the query
+
     return render_template('doctors_patient.html', patients=patients)
-
-
 
 @controller.route('/update_password', methods=['GET', 'POST'])
 def update_password():
