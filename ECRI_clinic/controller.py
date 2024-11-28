@@ -213,7 +213,7 @@ def signup():
 
         hashed_password = generate_password_hash(password)
         
-        # Basic email format check
+
         if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
             flash("Invalid email format.", "danger")
             return redirect(url_for('signup'))
@@ -231,7 +231,7 @@ def signup():
             cursor.execute(sql, values)
             db.commit()
 
-            # Send a welcome email upon successful registration
+            # Send a welcome mail
             msg = Message("Welcome to our EHR System!", sender='mutalegeorge367@gmail.com', recipients=[email])
             msg.body = f"Hello {first_name} {last_name},\n\nThank you for registering with us!"
             msg.html = f"<h3>Hello {first_name} {last_name},</h3><p>Thank you for registering with us!</p>"
@@ -248,7 +248,6 @@ def signup():
 
 @controller.route("/update_profile", methods=['GET', 'POST'])
 def update_profile():
-    # Retrieve department_id from session (assuming this is how you're tracking the logged-in doctor)
     department_id = session.get('department_id')  
     if 'department_id' not in session:
         return redirect(url_for('login'))
@@ -269,13 +268,13 @@ def update_profile():
         phone = request.form.get('phone')
         email = request.form.get('email')
 
-        # Basic email format check
+        # checking mail
         if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
             flash("Invalid email format.", "danger")
             return redirect(url_for('update_profile'))
 
         try:
-            # Update data in the database
+            # Updating data in the database
             update_sql = """
                 UPDATE doctors
                 SET title = %s, department_id = %s, first_name = %s, last_name = %s, gender = %s, 
@@ -612,7 +611,6 @@ def export_all_patients_excel():
     if not patients:
         return "No patients found for this department", 404  # Return 404 if no patients are found
     
-    # Get column names from the cursor description
     column_names = [desc[0] for desc in cursor.description]
 
     # Convert the patients data into a DataFrame
