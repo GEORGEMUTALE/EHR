@@ -207,8 +207,8 @@ def signup():
             flash("Passwords do not match.", "danger")
             return redirect(url_for('signup'))
         
-        if not re.match(r'^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&#!])[A-Za-z\d@$!%*?&#!]{8,}$', password):
-            flash("Password must be at least 8 characters long and contain letters, numbers, and special characters.", "danger")
+        if not re.match(r'^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&#!])[A-Za-z\d@$!%*?&#!]{6,}$', password):
+            flash("Password must be at least 6 characters long and contain letters, numbers, and special characters.", "danger")
             return redirect(url_for('signup'))
 
         hashed_password = generate_password_hash(password)
@@ -237,7 +237,7 @@ def signup():
             msg.html = f"<h3>Hello {first_name} {last_name},</h3><p>Thank you for registering with us!</p>"
             mail.send(msg)
 
-            flash("Signup successful!", "Success")
+            flash("Signup successful!", "success")
             return redirect(url_for('login'))
 
         except mysql.connector.Error as err:
@@ -452,7 +452,6 @@ def add_patient():
     # Render the form for adding a new patient
     return render_template('edit_patient.html', patient=None)
 
-# Route for editing an existing patient's details
 @controller.route('/edit_patient/<string:patient_id>', methods=['GET', 'POST'])
 def edit_patient(patient_id):
     department_id = session.get('department_id')
@@ -482,30 +481,37 @@ def edit_patient(patient_id):
         vital_signs = request.form.get('vitalSigns')
         terms_accepted = request.form.get('terms')
 
-    image_file = request.files.get('patient_image')
-    image_url = None
+        image_file = request.files.get('patient_image')
+        image_url = None
 
-    if image_file and image_file.filename:  # A new image is uploaded
-        filename = secure_filename(image_file.filename)
-        image_url = save_image(image_file, filename)  # Use utility function to handle image saving
-    else:  # No new image uploaded, retain the existing image
-        cursor.execute("SELECT patient_image FROM patients WHERE patient_id = %s", (patient_id,))
-        existing_image = cursor.fetchone()
-        image_url = existing_image['patient_image'] if existing_image else None
+        if image_file and image_file.filename:  # A new image is uploaded
+            filename = secure_filename(image_file.filename)
+            image_url = save_image(image_file, filename)  # Use utility function to handle image saving
+        else:  # No new image uploaded, retain the existing image
+            cursor.execute("SELECT patient_image FROM patients WHERE patient_id = %s", (patient_id,))
+            existing_image = cursor.fetchone()
 
-    # Update patient details in the database
-    cursor.execute("""
-        UPDATE patients
-        SET first_name = %s, last_name = %s, date_of_birth = %s, gender = %s, date_of_visit = %s,
-            chief_complaint = %s, medical_history = %s, medications = %s, 
-            allergies = %s, vital_signs = %s, patient_image = %s, terms_accepted = %s
-        WHERE patient_id = %s
-    """, (first_name, last_name, date_of_birth, gender, date_of_visit, chief_complaint, medical_history,
-          medications, allergies, vital_signs, image_url, terms_accepted, patient_id))
+            if existing_image:
+                # Convert tuple to dictionary
+                existing_image = dict(zip([column[0] for column in cursor.description], existing_image))
+                image_url = existing_image['patient_image']
+            else:
+                image_url = None
 
-    db.commit()
-    flash("Patient details updated successfully.", "success")
-    return redirect(url_for('view_patients'))
+        # Update patient details in the database
+        cursor.execute("""
+            UPDATE patients
+            SET first_name = %s, last_name = %s, date_of_birth = %s, gender = %s, date_of_visit = %s,
+                chief_complaint = %s, medical_history = %s, medications = %s, 
+                allergies = %s, vital_signs = %s, patient_image = %s, terms_accepted = %s
+            WHERE patient_id = %s
+        """, (first_name, last_name, date_of_birth, gender, date_of_visit, chief_complaint, medical_history,
+              medications, allergies, vital_signs, image_url, terms_accepted, patient_id))
+
+        db.commit()
+        flash("Patient details updated successfully.", "success")
+        return redirect(url_for('view_patients'))
+
 
 
 @controller.route('/delete_image/<string:patient_id>/<path:image_url>')
@@ -727,7 +733,7 @@ def update_password():
         # Check if user is logged in
         department_id = session.get('department_id')
         if not department_id:
-            flash("You must be logged in to update your password.", "warning")
+            flash("You must be logged in to update your password.", "error")
             return redirect(url_for('login'))
 
         # Retrieve the current password from the database
@@ -745,12 +751,12 @@ def update_password():
 
         # Confirm new passwords match
         if new_password != confirm_password:
-            flash("New password and confirmation do not match.", "danger")
+            flash("New password and confirmation do not match.", "error")
             return redirect(url_for('update_password'))
         
           # Validate new password complexity
-        if not re.match(r'^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$', new_password):
-            flash("Password must be at least 8 characters long and contain letters, numbers, and special characters.", "danger")
+        if not re.match(r'^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$', new_password):
+            flash("Password must be at least 6 characters long and contain letters, numbers, and special characters.", "error")
             return redirect(url_for('update_password'))
 
 

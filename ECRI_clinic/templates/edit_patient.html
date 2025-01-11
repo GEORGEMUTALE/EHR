@@ -162,7 +162,7 @@
                         <div class="form-check d-flex justify-content-start mb-4 pb-3">
                             <input class="form-check-input me-3" type="checkbox" value="Accepted" id="terms"
                                 name="terms" {% if patient and patient.terms_accepted=='Accepted' %} checked {% endif
-                                %} />
+                                %} required/>
                             <label class="form-check-label text-black" for="terms">
                                 I hereby declare my agreement and acceptance of the data protection regulations by this
                                 medical facility. If I don't, I cannot use the application.
