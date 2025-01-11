@@ -147,8 +147,8 @@ def forgot_password():
             mail.send(msg)
             
             flash("Password reset link has been sent to your email.", "success")
-
-        flash("Email address is not registered.", "danger") 
+        else:
+            flash("Email address is not registered.", "error") 
     
     return render_template('forgot_password.html')
 
@@ -451,7 +451,6 @@ def add_patient():
 
     # Render the form for adding a new patient
     return render_template('edit_patient.html', patient=None)
-
 @controller.route('/edit_patient/<string:patient_id>', methods=['GET', 'POST'])
 def edit_patient(patient_id):
     department_id = session.get('department_id')
@@ -469,10 +468,10 @@ def edit_patient(patient_id):
 
     # Handle POST request to update patient details
     elif request.method == 'POST':
-        first_name = request.form.get('first_name')
-        last_name = request.form.get('last_name')
+        first_name = request.form.get('first_name').upper()
+        last_name = request.form.get('last_name').upper()
         date_of_birth = request.form.get('dob')
-        gender = request.form.get('gender')
+        gender = request.form.get('gender').upper()
         date_of_visit = request.form.get('dateOfVisit')
         chief_complaint = request.form.get('chiefComplaint')
         medical_history = request.form.get('medicalHistory')
@@ -482,21 +481,28 @@ def edit_patient(patient_id):
         terms_accepted = request.form.get('terms')
 
         image_file = request.files.get('patient_image')
-        image_url = None
 
+        # Fetch the existing image URLs from the database
+        cursor.execute("SELECT patient_image FROM patients WHERE patient_id = %s", (patient_id,))
+        existing_image = cursor.fetchone()
+        if existing_image:
+            existing_image_urls = existing_image[0]  # Extract the stored image URLs (as a string)
+        else:
+            existing_image_urls = ""
+
+        new_image_url = None
         if image_file and image_file.filename:  # A new image is uploaded
             filename = secure_filename(image_file.filename)
-            image_url = save_image(image_file, filename)  # Use utility function to handle image saving
-        else:  # No new image uploaded, retain the existing image
-            cursor.execute("SELECT patient_image FROM patients WHERE patient_id = %s", (patient_id,))
-            existing_image = cursor.fetchone()
+            new_image_url = save_image(image_file, filename)  # Save the new image and get its URL
 
-            if existing_image:
-                # Convert tuple to dictionary
-                existing_image = dict(zip([column[0] for column in cursor.description], existing_image))
-                image_url = existing_image['patient_image']
-            else:
-                image_url = None
+        # Append the new image URL to the existing list, if present
+        if new_image_url:
+            if existing_image_urls:  # If there are existing URLs
+                updated_image_urls = f"{existing_image_urls},{new_image_url}"
+            else:  # No existing URLs
+                updated_image_urls = new_image_url
+        else:
+            updated_image_urls = existing_image_urls  # Keep existing URLs if no new image
 
         # Update patient details in the database
         cursor.execute("""
@@ -506,12 +512,11 @@ def edit_patient(patient_id):
                 allergies = %s, vital_signs = %s, patient_image = %s, terms_accepted = %s
             WHERE patient_id = %s
         """, (first_name, last_name, date_of_birth, gender, date_of_visit, chief_complaint, medical_history,
-              medications, allergies, vital_signs, image_url, terms_accepted, patient_id))
+              medications, allergies, vital_signs, updated_image_urls, terms_accepted, patient_id))
 
         db.commit()
         flash("Patient details updated successfully.", "success")
         return redirect(url_for('view_patients'))
-
 
 
 @controller.route('/delete_image/<string:patient_id>/<path:image_url>')
